@@ -1,274 +1,115 @@
-'use client';
-import { useState } from 'react';
+import Link from 'next/link';
 
-type JobState = {
-  file: File;
-  progress: number;
-  status: 'idle' | 'converting' | 'done' | 'error';
-  previewUrl?: string;
-};
-
-export default function Home() {
-  const [jobs, setJobs] = useState<JobState[]>([]);
-  const [mode, setMode] = useState<'convert' | 'compress'>('convert');
-  const [format, setFormat] = useState<string>('webp');
-  const [compressionLevel, setCompressionLevel] = useState<'standard' | 'high'>('standard');
-  const [isDragging, setIsDragging] = useState(false);
-
-  const generatePreview = async (file: File): Promise<string | undefined> => {
-    if (file.type.startsWith('image/')) {
-      return URL.createObjectURL(file);
-    } else if (file.type.startsWith('video/')) {
-      return new Promise((resolve) => {
-        const video = document.createElement('video');
-        const canvas = document.createElement('canvas');
-        video.autoplay = true;
-        video.muted = true;
-        video.src = URL.createObjectURL(file);
-        
-        video.onloadeddata = () => { video.currentTime = 1; };
-        video.onseeked = () => {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL('image/jpeg'));
-        };
-        video.onerror = () => resolve(undefined);
-      });
+const tools = [
+    {
+        id: 'compress',
+        title: 'Compresser IMAGE',
+        description: 'Compressez JPG, PNG, SVG, et GIFs tout en gagnant de la place et en conservant la qualité.',
+        icon: <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4h16v16H4V4zm4 4l4 4 4-4m-4 4v8"></path></svg>,
+        color: 'bg-green-500',
+        href: '/compress',
+        isNew: false,
+    },
+    {
+        id: 'convert',
+        title: 'Convertir IMAGE/VIDEO',
+        description: 'Transformez vos fichiers vers les formats WebP, PNG, JPG, ou vos vidéos en MP4 localement.',
+        icon: <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>,
+        color: 'bg-yellow-400',
+        href: '/convert',
+        isNew: false,
+    },
+    {
+        id: 'resize',
+        title: 'Redimensionner',
+        description: 'Définissez vos dimensions, par pourcentage ou pixels, et redimensionnez vos images.',
+        icon: <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>,
+        color: 'bg-blue-400',
+        href: '/resize',
+        isNew: false,
+    },
+    {
+        id: 'crop',
+        title: 'Rogner IMAGE',
+        description: 'Rognez vos images avec facilité. Choisissez les pixels pour définir votre rectangle.',
+        icon: <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"></path></svg>,
+        color: 'bg-cyan-500',
+        href: '/crop',
+        isNew: false,
+    },
+    {
+        id: 'rotate',
+        title: 'Faire pivoter',
+        description: 'Faites pivoter plusieurs images ou vidéos en même temps (paysage ou portrait).',
+        icon: <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>,
+        color: 'bg-blue-500',
+        href: '/rotate',
+        isNew: false,
+    },
+    {
+        id: 'remove-bg',
+        title: 'Supprimer le fond',
+        description: 'Supprimez rapidement l\'arrière-plan de vos images avec une grande précision.',
+        icon: <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>,
+        color: 'bg-green-600',
+        href: '/remove-bg',
+        isNew: true,
+    },
+    {
+        id: 'watermark',
+        title: 'Filigrane IMAGE',
+        description: 'Tamponnez une image ou un texte sur vos images en quelques secondes.',
+        icon: <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>,
+        color: 'bg-slate-600',
+        href: '/watermark',
+        isNew: false,
     }
-    return undefined;
-  };
+];
 
-  const processFiles = async (files: File[] | FileList) => {
-    const filesArray = Array.from(files);
-    const newJobs: JobState[] = filesArray.map(file => ({
-      file,
-      progress: 0,
-      status: 'idle'
-    }));
-
-    setJobs(prev => [...prev, ...newJobs]);
-
-    for (let i = 0; i < newJobs.length; i++) {
-      const previewUrl = await generatePreview(newJobs[i].file);
-      if (previewUrl) {
-        setJobs(currentJobs => {
-          const updated = [...currentJobs];
-          const targetIndex = updated.findIndex(j => j.file === newJobs[i].file);
-          if (targetIndex !== -1) updated[targetIndex].previewUrl = previewUrl;
-          return updated;
-        });
-      }
-    }
-  };
-
-  const onDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
-  const onDragLeave = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); };
-  const onDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    if (e.dataTransfer.files?.length > 0) processFiles(e.dataTransfer.files);
-  };
-
-  const handleProcessAll = () => {
-    if (jobs.length === 0) return;
-    jobs.forEach((job, index) => {
-      if (job.status === 'idle') startSingleJob(job, index);
-    });
-  };
-
-  const startSingleJob = async (job: JobState, index: number) => {
-    updateJobState(index, { status: 'converting' });
-    const formData = new FormData();
-    formData.append('file', job.file);
-    formData.append('mode', mode);
-    
-    // On n'envoie que les données pertinentes selon le mode
-    if (mode === 'convert') formData.append('format', format);
-    if (mode === 'compress') formData.append('compressionLevel', compressionLevel);
-
-    try {
-      const response = await fetch('/api/convert', { method: 'POST', body: formData });
-      const { jobId, targetFormat } = await response.json();
-      if (!jobId) throw new Error("Erreur d'initialisation");
-
-      const eventSource = new EventSource(`/api/progress?jobId=${jobId}`);
-      eventSource.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        updateJobState(index, { progress: data.progress });
-
-        if (data.status === 'done') {
-          eventSource.close();
-          updateJobState(index, { status: 'done', progress: 100 });
-          const link = document.createElement('a');
-          // On utilise le targetFormat renvoyé par le serveur
-          link.href = `/api/download?jobId=${jobId}&format=${targetFormat}`;
-          link.target = '_blank'; 
-          link.click();
-        } else if (data.status === 'error') {
-          eventSource.close();
-          updateJobState(index, { status: 'error' });
-        }
-      };
-    } catch (error) {
-      console.error('Erreur réseau:', error);
-      updateJobState(index, { status: 'error' });
-    }
-  };
-
-  const updateJobState = (index: number, updates: Partial<JobState>) => {
-    setJobs(prevJobs => {
-      const newJobs = [...prevJobs];
-      newJobs[index] = { ...newJobs[index], ...updates };
-      return newJobs;
-    });
-  };
-
-  const removeJob = (indexToRemove: number) => {
-    setJobs(prev => prev.filter((_, index) => index !== indexToRemove));
-  };
-
-  const isProcessing = jobs.some(job => job.status === 'converting');
-
-  return (
-    <main className="min-h-screen bg-gray-50 py-12 px-6 font-sans">
-      <div className="max-w-4xl mx-auto space-y-8">
-        
-        <header className="text-center">
-          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Convertisseur Universel</h1>
-          <p className="mt-2 text-gray-500">Transformez ou compressez vos fichiers localement</p>
-        </header>
-        
-        {/* Panneau de contrôle */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-6">
-          
-          {/* Sélecteur de Mode (Onglets) */}
-          <div className="flex p-1 bg-gray-100 rounded-lg w-full md:w-fit mx-auto">
-            <button 
-              onClick={() => setMode('convert')}
-              className={`flex-1 md:w-48 py-2 text-sm font-medium rounded-md transition-all ${
-                mode === 'convert' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Changer de format
-            </button>
-            <button 
-              onClick={() => setMode('compress')}
-              className={`flex-1 md:w-48 py-2 text-sm font-medium rounded-md transition-all ${
-                mode === 'compress' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Compresser
-            </button>
-          </div>
-
-          <div className="flex flex-col md:flex-row gap-4 items-center justify-between border-t border-gray-50 pt-6">
+    export default function Dashboard() {
+    return (
+        <main className="min-h-screen bg-[#F0F4F9] py-12 px-6 font-sans">
+        <div className="max-w-7xl mx-auto space-y-10">
             
-            <div className="flex items-center gap-3">
-              {mode === 'convert' ? (
-                <>
-                  <span className="font-medium text-gray-700">Format de sortie :</span>
-                  <select 
-                    value={format} 
-                    onChange={(e) => setFormat(e.target.value)}
-                    className="border-gray-300 text-black border p-2.5 rounded-lg bg-gray-50 outline-none"
-                    disabled={isProcessing}
-                  >
-                    <optgroup label="Images"><option value="webp">WebP</option><option value="png">PNG</option><option value="jpg">JPG</option></optgroup>
-                    <optgroup label="Vidéos"><option value="mp4">MP4</option><option value="avi">AVI</option><option value="webm">WebM</option></optgroup>
-                  </select>
-                </>
-              ) : (
-                <>
-                  <span className="font-medium text-gray-700">Niveau de compression :</span>
-                  <select 
-                    value={compressionLevel} 
-                    onChange={(e) => setCompressionLevel(e.target.value as 'standard' | 'high')}
-                    className="border-gray-300 text-black border p-2.5 rounded-lg bg-gray-50 outline-none"
-                    disabled={isProcessing}
-                  >
-                    <option value="standard">Standard (Bon compromis)</option>
-                    <option value="high">Élevée (Fichier plus léger)</option>
-                  </select>
-                </>
-              )}
-            </div>
-            
-            <button 
-              onClick={handleProcessAll}
-              disabled={isProcessing || jobs.length === 0}
-              className="w-full md:w-auto bg-black text-white px-6 py-2.5 rounded-lg font-medium transition-all hover:bg-gray-800 disabled:bg-gray-300"
-            >
-              {isProcessing ? 'Traitement en cours...' : mode === 'convert' ? `Convertir en .${format.toUpperCase()}` : 'Compresser la sélection'}
-            </button>
-          </div>
-        </div>
+            <header className="text-center space-y-3">
+            <h1 className="text-4xl font-extrabold text-gray-900">Boîte à outils Multimédia</h1>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                Chaque outil tourne 100% localement sur ta machine grâce à Docker et FFmpeg.
+            </p>
+            </header>
 
-        {/* Zone de Drag & Drop */}
-        <div 
-          onDragOver={onDragOver}
-          onDragLeave={onDragLeave}
-          onDrop={onDrop}
-          className={`relative border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-200 ease-in-out ${
-            isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white hover:bg-gray-50'
-          }`}
-        >
-          <input 
-            type="file" 
-            multiple
-            onChange={(e) => e.target.files && processFiles(e.target.files)} 
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-            disabled={isProcessing}
-          />
-          <div className="pointer-events-none">
-            <h3 className="text-lg font-medium text-gray-900">Glissez-déposez vos fichiers ici</h3>
-            <p className="mt-1 text-sm text-gray-500">ou cliquez pour parcourir votre ordinateur</p>
-          </div>
-        </div>
-
-        {/* Liste des fichiers (identique à avant) */}
-        {jobs.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <ul className="divide-y divide-gray-100">
-              {jobs.map((job, i) => (
-                <li key={i} className="p-4 flex items-center gap-4">
-                  <div className="w-14 h-14 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden flex items-center justify-center border border-gray-200">
-                    {job.previewUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={job.previewUrl} alt="preview" className="object-cover w-full h-full" />
-                    ) : (<span className="text-xs font-medium text-gray-400">...</span>)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 truncate text-sm">{job.file.name}</p>
-                    {job.status !== 'idle' ? (
-                      <div className="w-full bg-gray-200 rounded-full h-2 mt-2.5 overflow-hidden">
-                        <div className={`h-2 rounded-full transition-all duration-300 ease-out ${
-                          job.status === 'done' ? 'bg-green-500' : job.status === 'error' ? 'bg-red-500' : 'bg-blue-600'
-                        }`} style={{ width: `${job.progress}%` }}></div>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-gray-500 mt-1">Prêt pour le traitement</p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`text-sm font-medium w-20 text-right ${
-                      job.status === 'done' ? 'text-green-600' : job.status === 'error' ? 'text-red-600' : 'text-gray-500'
-                    }`}>
-                      {job.status === 'done' ? 'Terminé' : job.status === 'error' ? 'Erreur' : job.status === 'idle' ? '' : `${job.progress}%`}
+            {/* La Grille CSS */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {tools.map((tool) => (
+                <Link 
+                key={tool.id} 
+                href={tool.href}
+                className="group relative bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-200 ease-in-out hover:-translate-y-1 flex flex-col h-full cursor-pointer"
+                >
+                {/* Badge "New!" */}
+                {tool.isNew && (
+                    <span className="absolute top-4 right-4 bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded">
+                    New!
                     </span>
-                    {job.status !== 'converting' && (
-                      <button onClick={() => removeJob(i)} className="text-gray-400 hover:text-red-500 p-1">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                      </button>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-    </main>
-  );
+                )}
+                
+                {/* Icône colorée */}
+                <div className={`w-14 h-14 ${tool.color} rounded-xl flex items-center justify-center mb-6 shadow-sm`}>
+                    {tool.icon}
+                </div>
+                
+                {/* Textes */}
+                <h2 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-blue-600 transition-colors">
+                    {tool.title}
+                </h2>
+                <p className="text-sm text-gray-500 leading-relaxed grow">
+                    {tool.description}
+                </p>
+                </Link>
+            ))}
+            </div>
+
+        </div>
+        </main>
+    );
 }
