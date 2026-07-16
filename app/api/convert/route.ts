@@ -12,32 +12,47 @@ export async function POST(request: Request) {
     try {
         const data = await request.formData();
         const file: File | null = data.get('file') as unknown as File;
+        const mode = data.get('mode') as string || 'convert';
         const format = data.get('format') as string || 'webp';
+        const compressionLevel = data.get('compressionLevel') as string || 'standard';
 
         if (!file) return NextResponse.json({ error: 'Aucun fichier' }, { status: 400 });
 
-        // 1. Création d'un ID unique pour cette tâche
         const jobId = crypto.randomUUID();
         globalStore.jobs[jobId] = { progress: 0, status: 'processing' };
 
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
         
+        // On extrait l'extension d'origine si on est en mode compression
+        const originalExtension = file.name.split('.').pop()?.toLowerCase() || 'mp4';
+        const targetFormat = mode === 'compress' ? originalExtension : format;
+
         const tempDir = os.tmpdir();
         const inputPath = path.join(tempDir, `${jobId}-${file.name}`);
-        const outputPath = path.join(tempDir, `converted-${jobId}.${format}`); 
+        const outputPath = path.join(tempDir, `converted-${jobId}.${targetFormat}`); 
 
         await writeFile(inputPath, buffer);
 
-        // 2. Configuration de FFmpeg
         const command = ffmpeg(inputPath);
+        const isImage = ['jpg', 'jpeg', 'png', 'webp'].includes(targetFormat);
 
-        // CORRECTION : Si le format de sortie est une image, on s'arrête après 1 seule image
-        if (['jpg', 'png', 'webp'].includes(format)) {
-        command.frames(1);
+        // Logique exclusive selon le mode choisi
+        if (mode === 'compress') {
+        if (isImage) {
+            // Options de compression pour les images
+            command.outputOptions([compressionLevel === 'high' ? '-q:v 5' : '-q:v 2']);
+        } else {
+            // Options de compression pour les vidéos (CRF)
+            command.outputOptions([compressionLevel === 'high' ? '-crf 28' : '-crf 23']);
+        }
+        } else {
+        // Mode conversion (on garde la sécurité pour les images)
+        if (isImage) {
+            command.frames(1);
+        }
         }
 
-        // On lance le traitement
         command
         .on('progress', (progress) => {
             if (progress.percent) {
@@ -49,16 +64,16 @@ export async function POST(request: Request) {
             globalStore.jobs[jobId].outputPath = outputPath;
             globalStore.jobs[jobId].inputPath = inputPath; 
         })
-        .on('error', (err, stdout, stderr) => {
+        .on('error', (err) => {
             console.error('Erreur FFmpeg:', err.message);
             globalStore.jobs[jobId].status = 'error';
         })
         .save(outputPath);
 
-            // 3. On répond immédiatement au front-end avec l'ID du job
-            return NextResponse.json({ jobId, format });
+        // On renvoie aussi le targetFormat pour que le front sache quoi télécharger
+        return NextResponse.json({ jobId, targetFormat });
 
-        } catch (error) {
-            return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
-        }
+    } catch (error) {
+        return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    }
 }
