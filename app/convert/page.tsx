@@ -151,8 +151,22 @@ export default function ConvertPage() {
               className="border-gray-300 text-black border p-2.5 rounded-lg bg-gray-50 outline-none"
               disabled={isProcessing}
             >
-              <optgroup label="Images"><option value="webp">WebP</option><option value="png">PNG</option><option value="jpg">JPG</option></optgroup>
-              <optgroup label="Vidéos"><option value="mp4">MP4</option><option value="avi">AVI</option><option value="webm">WebM</option></optgroup>
+              <optgroup label="Images">
+                <option value="webp">WebP</option>
+                <option value="png">PNG</option>
+                <option value="jpg">JPG</option>
+                <option value="jpeg">JPEG</option>
+                <option value="bmp">BMP</option>
+                <option value="tiff">TIFF (Haute qualité)</option>
+                <option value="gif">GIF (Statique)</option>
+                <option value="ico">ICO (Icône Web)</option>
+                <option value="tga">TGA (Gaming/Textures)</option>
+              </optgroup>
+              <optgroup label="Vidéos">
+                <option value="mp4">MP4</option>
+                <option value="avi">AVI</option>
+                <option value="webm">WebM</option>
+              </optgroup>
             </select>
           </div>
           

@@ -31,7 +31,16 @@ export async function POST(request: Request) {
         try {
             globalStore.jobs[jobId].progress = 25;
             
-            const blob = await removeBackground(inputPath);
+            const aiOptions = {
+                model: 'medium',
+                output: {
+                    format: 'image/png',
+                    quality: 1.0, 
+                    type: 'foreground'
+                }
+            };
+            
+            const blob = await removeBackground(inputPath, aiOptions);
             
             globalStore.jobs[jobId].progress = 75;
             

@@ -4,13 +4,18 @@ import path from 'node:path';
 import os from 'node:os';
 import ffmpeg from 'fluent-ffmpeg';
 import crypto from 'node:crypto';
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
 
+const execPromise = promisify(exec);
 const globalStore = global as any;
 if (!globalStore.jobs) globalStore.jobs = {};
 
+const COMPLEX_FORMATS = ['heic', 'psd', 'svg', 'cr2', 'nef', 'dng', 'raw'];
+
 export async function processFfmpegJob(
     request: Request,
-    buildOptions: (command: ffmpeg.FfmpegCommand, formData: FormData, originalExt: string) => string 
+    buildOptions: (command: ffmpeg.FfmpegCommand, formData: FormData, originalExt: string) => string
 ) {
     try {
         const formData = await request.formData();
@@ -29,8 +34,35 @@ export async function processFfmpegJob(
         
         await writeFile(inputPath, buffer);
 
-        const command = ffmpeg(inputPath);
+        // ---------------------------------------------------------
+        // MOTEUR 1 : IMAGEMAGICK (Pour les formats complexes)
+        // ---------------------------------------------------------
+        if (COMPLEX_FORMATS.includes(originalExtension)) {
+        globalStore.jobs[jobId].progress = 40; 
         
+        const targetFormat = formData.get('format') as string || 'png';
+        const outputPath = path.join(tempDir, `converted-${jobId}.${targetFormat}`);
+        
+        (async () => {
+            try {
+            await execPromise(`convert "${inputPath}" "${outputPath}"`);
+            globalStore.jobs[jobId].progress = 100;
+            globalStore.jobs[jobId].status = 'done';
+            globalStore.jobs[jobId].outputPath = outputPath;
+            globalStore.jobs[jobId].inputPath = inputPath;
+            } catch (err) {
+            console.error('Erreur ImageMagick:', err);
+            globalStore.jobs[jobId].status = 'error';
+            }
+        })();
+
+        return NextResponse.json({ jobId, targetFormat });
+        }
+        
+        // ---------------------------------------------------------
+        // MOTEUR 2 : FFMPEG (Pour les vidéos et images standards)
+        // ---------------------------------------------------------
+        const command = ffmpeg(inputPath);
         const targetFormat = buildOptions(command, formData, originalExtension);
         const outputPath = path.join(tempDir, `converted-${jobId}.${targetFormat}`);
 
@@ -45,7 +77,7 @@ export async function processFfmpegJob(
             globalStore.jobs[jobId].outputPath = outputPath;
             globalStore.jobs[jobId].inputPath = inputPath;
         })
-        .on('error', (err, stdout, stderr) => {
+        .on('error', (err) => {
             console.error('Erreur FFmpeg:', err.message);
             globalStore.jobs[jobId].status = 'error';
         })

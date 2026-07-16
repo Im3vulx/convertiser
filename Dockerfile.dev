@@ -1,15 +1,16 @@
-FROM node:20-alpine
+FROM node:20-bookworm-slim
 
-# Installation de FFmpeg pour le développement
-RUN apk update && apk add --no-cache ffmpeg libc6-compat
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    imagemagick \
+    libheif-examples \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN sed -i 's/rights="none" pattern="PDF"/rights="read|write" pattern="PDF"/g' /etc/ImageMagick-6/policy.xml || true
 
 WORKDIR /app
 
-# Installation des dépendances
 COPY package.json package-lock.json ./
 RUN npm install
 
-# (Le reste du code sera synchronisé dynamiquement via docker-compose)
-
-# Lancement de Next.js en mode développement
 CMD ["npm", "run", "dev"]
