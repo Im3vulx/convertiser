@@ -1,38 +1,29 @@
 import { NextResponse } from 'next/server';
-import { readFile, unlink } from 'node:fs/promises';
-
-const globalStore = global as any;
+import fs from 'node:fs/promises';
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const jobId = searchParams.get('jobId');
-    const format = searchParams.get('format') || 'file';
+    const format = searchParams.get('format');
 
-    if (!jobId || !globalStore.jobs || !globalStore.jobs[jobId]) {
-        return new NextResponse('Job introuvable', { status: 404 });
+    if (!jobId || !format) {
+        return new Response('Paramètres manquants', { status: 400 });
     }
 
-    const job = globalStore.jobs[jobId];
-
-    if (job.status !== 'done' || !job.outputPath) {
-        return new NextResponse('Fichier non prêt', { status: 400 });
-    }
+    const filePath = `/tmp/${jobId}.${format}`;
 
     try {
-        const fileBuffer = await readFile(job.outputPath);
-
-        // Nettoyage asynchrone des fichiers temporaires
-        unlink(job.inputPath).catch(() => {});
-        unlink(job.outputPath).catch(() => {});
-        delete globalStore.jobs[jobId]; // On supprime le ticket de la mémoire
+        const fileBuffer = await fs.readFile(filePath);
+        
+        fs.unlink(filePath).catch((err) => console.error("Erreur de nettoyage:", err));
 
         return new NextResponse(fileBuffer, {
         headers: {
+            'Content-Disposition': `attachment; filename="resultat-${jobId}.${format}"`,
             'Content-Type': 'application/octet-stream',
-            'Content-Disposition': `attachment; filename="converti.${format}"`,
         },
         });
     } catch (error) {
-        return new NextResponse('Erreur de lecture', { status: 500 });
+        return new Response('Fichier introuvable ou expiré', { status: 404 });
     }
 }

@@ -88,6 +88,14 @@ const tools = [
         color: 'bg-emerald-500',
         href: '/image-pro',
     },
+    {
+        id: 'pdf-tools',
+        title: 'Outils PDF',
+        description: 'Compressez, convertissez et fusionnez vos fichiers PDF rapidement.',
+        icon: <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>,
+        color: 'bg-indigo-500',
+        href: '/pdf',
+    },
 ];
 
     export default function Dashboard() {
