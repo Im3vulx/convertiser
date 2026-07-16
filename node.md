@@ -1,1 +1,0 @@
-Est-ce que tu veux que nous fassions une revue globale de ton application maintenant, ou est-ce que tu souhaites ajouter une dernière sécurité pour nettoyer les fichiers temporaires (/tmp) automatiquement après chaque traitement ?
