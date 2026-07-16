@@ -168,7 +168,7 @@ export default function ResizePage() {
                 <ul className="divide-y divide-gray-100">
                 {jobs.map((job, i) => (
                     <li key={i} className="p-4 flex items-center gap-4">
-                    <div className="w-14 h-14 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden flex items-center justify-center border border-gray-200">
+                    <div className="w-14 h-14 bg-gray-100 rounded-lg shrink-0 overflow-hidden flex items-center justify-center border border-gray-200">
                         {job.previewUrl ? (<img src={job.previewUrl} alt="preview" className="object-cover w-full h-full" />) : (<span className="text-xs font-medium text-gray-400">...</span>)}
                     </div>
                     <div className="flex-1 min-w-0">

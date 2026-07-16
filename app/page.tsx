@@ -63,53 +63,51 @@ const tools = [
         color: 'bg-slate-600',
         href: '/watermark',
         isNew: false,
-    }
+    },
+    {
+        id: 'effects',
+        title: 'Effets visuels',
+        description: 'Appliquez des filtres (Noir & Blanc, Miroir, Flou, Négatif) à vos images.',
+        icon: <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path></svg>,
+        color: 'bg-purple-500',
+        href: '/effects',
+        isNew: true,
+    },{
+        id: 'video-pro',
+        title: 'Vidéo Pro',
+        description: 'Découpage (Trim), gestion audio et ajustement de la vitesse.',
+        icon: <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>,
+        color: 'bg-red-500',
+        href: '/video-pro',
+    },
+    {
+        id: 'image-pro',
+        title: 'Image Pro',
+        description: 'Compression sans perte, conversion GIF et filtres avancés.',
+        icon: <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>,
+        color: 'bg-emerald-500',
+        href: '/image-pro',
+    },
 ];
 
     export default function Dashboard() {
     return (
-        <main className="min-h-screen bg-[#F0F4F9] py-12 px-6 font-sans">
-        <div className="max-w-7xl mx-auto space-y-10">
-            
-            <header className="text-center space-y-3">
-            <h1 className="text-4xl font-extrabold text-gray-900">Boîte à outils Multimédia</h1>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                Chaque outil tourne 100% localement sur ta machine grâce à Docker et FFmpeg.
-            </p>
-            </header>
-
-            {/* La Grille CSS */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {tools.map((tool) => (
-                <Link 
-                key={tool.id} 
-                href={tool.href}
-                className="group relative bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-200 ease-in-out hover:-translate-y-1 flex flex-col h-full cursor-pointer"
-                >
-                {/* Badge "New!" */}
-                {tool.isNew && (
-                    <span className="absolute top-4 right-4 bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded">
-                    New!
-                    </span>
-                )}
+        <main className="min-h-screen bg-gray-50 py-12 px-6">
+            <div className="max-w-6xl mx-auto">
+                <h1 className="text-4xl font-black text-gray-900 mb-12">Tableau de bord multimédia</h1>
                 
-                {/* Icône colorée */}
-                <div className={`w-14 h-14 ${tool.color} rounded-xl flex items-center justify-center mb-6 shadow-sm`}>
-                    {tool.icon}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {tools.map((tool) => (
+                    <a key={tool.id} href={tool.href} className="group bg-white p-6 rounded-2xl shadow-sm border border-gray-100 transition-all hover:shadow-lg hover:-translate-y-1">
+                    <div className={`${tool.color} w-12 h-12 rounded-xl flex items-center justify-center mb-4`}>
+                        {tool.icon}
+                    </div>
+                    <h2 className="text-xl font-bold text-gray-900">{tool.title}</h2>
+                    <p className="mt-2 text-gray-500 text-sm">{tool.description}</p>
+                    </a>
+                ))}
                 </div>
-                
-                {/* Textes */}
-                <h2 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-blue-600 transition-colors">
-                    {tool.title}
-                </h2>
-                <p className="text-sm text-gray-500 leading-relaxed grow">
-                    {tool.description}
-                </p>
-                </Link>
-            ))}
             </div>
-
-        </div>
         </main>
     );
 }

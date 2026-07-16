@@ -104,7 +104,7 @@ export default function RotatePage() {
 
             <header className="text-center">
             <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Faire pivoter IMAGE / VIDEO</h1>
-            <p className="mt-2 text-gray-500">Corrigez l'orientation de vos médias en un clic</p>
+            <p className="mt-2 text-gray-500">Corrigez l&apos;orientation de vos médias en un clic</p>
             </header>
             
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-center justify-between">
@@ -118,7 +118,7 @@ export default function RotatePage() {
                 >
                 <option value="90">90° vers la droite (Horaire)</option>
                 <option value="-90">90° vers la gauche (Anti-horaire)</option>
-                <option value="180">180° (À l'envers)</option>
+                <option value="180">180° (À l&apos;envers)</option>
                 </select>
             </div>
             
@@ -140,7 +140,7 @@ export default function RotatePage() {
                 <ul className="divide-y divide-gray-100">
                 {jobs.map((job, i) => (
                     <li key={i} className="p-4 flex items-center gap-4">
-                    <div className="w-14 h-14 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden flex items-center justify-center border border-gray-200">
+                    <div className="w-14 h-14 bg-gray-100 rounded-lg shrink-0 overflow-hidden flex items-center justify-center border border-gray-200">
                         {job.previewUrl ? (<img src={job.previewUrl} alt="preview" className="object-cover w-full h-full" />) : (<span className="text-xs font-medium text-gray-400">...</span>)}
                     </div>
                     <div className="flex-1 min-w-0">

@@ -90,8 +90,8 @@ export default function RemoveBgPage() {
             </Link>
 
             <header className="text-center">
-            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Supprimer l'arrière-plan</h1>
-            <p className="mt-2 text-gray-500">Détourez automatiquement vos photos (Humains, Animaux, Objets) via l'IA locale</p>
+            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Supprimer l&apos;arrière-plan</h1>
+            <p className="mt-2 text-gray-500">Détourez automatiquement vos photos (Humains, Animaux, Objets) via l&apos;IA locale</p>
             </header>
             
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex justify-end">
@@ -113,7 +113,7 @@ export default function RemoveBgPage() {
                 <ul className="divide-y divide-gray-100">
                 {jobs.map((job, i) => (
                     <li key={i} className="p-4 flex items-center gap-4">
-                    <div className="w-14 h-14 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden flex items-center justify-center border border-gray-200">
+                    <div className="w-14 h-14 bg-gray-100 rounded-lg shrink-0 overflow-hidden flex items-center justify-center border border-gray-200">
                         {job.previewUrl ? (<img src={job.previewUrl} alt="preview" className="object-cover w-full h-full" />) : (<span className="text-xs font-medium text-gray-400">...</span>)}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -122,7 +122,7 @@ export default function RemoveBgPage() {
                         <div className="w-full bg-gray-200 rounded-full h-2 mt-2.5 overflow-hidden">
                             <div className={`h-2 rounded-full transition-all duration-300 ease-out ${job.status === 'done' ? 'bg-green-500' : job.status === 'error' ? 'bg-red-500' : 'bg-blue-600'}`} style={{ width: `${job.progress}%` }}></div>
                         </div>
-                        ) : ( <p className="text-xs text-gray-500 mt-1">Prêt pour l'IA</p> )}
+                        ) : ( <p className="text-xs text-gray-500 mt-1">Prêt pour l&apos;IA</p> )}
                     </div>
                     <div className="flex items-center gap-3">
                         <span className={`text-sm font-medium w-20 text-right ${job.status === 'done' ? 'text-green-600' : job.status === 'error' ? 'text-red-600' : 'text-gray-500'}`}>
