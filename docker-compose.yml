@@ -1,9 +1,16 @@
-version: '3.8'
+version: '1.0'
 services:
   converter-app:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     ports:
       - "3000:3000"
-    restart: unless-stopped
+    volumes:
+      # Synchronise le code de ton Mac vers le conteneur en temps réel
+      - .:/app
+      # Isole les dépendances pour éviter les conflits Mac / Linux (Alpine)
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
