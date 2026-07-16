@@ -34,22 +34,31 @@ export default function PdfPage() {
         formData.append('action', action);
         
         try {
-        const res = await fetch('/api/pdf', { method: 'POST', body: formData });
-        if (res.ok) {
-            const blob = await res.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = action === 'to-images' ? 'images.zip' : 'document-optimise.pdf';
-            a.click();
-            window.URL.revokeObjectURL(url);
-        } else {
-            alert("Une erreur s'est produite lors du traitement.");
-        }
+            const res = await fetch('/api/pdf', { method: 'POST', body: formData });
+            const { jobId, targetFormat } = await res.json();
+            
+            const eventSource = new EventSource(`/api/progress?jobId=${jobId}`);
+            
+            eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                if (data.status === 'done') {
+                eventSource.close();
+                setIsProcessing(false);
+                
+                const link = document.createElement('a');
+                link.href = `/api/download?jobId=${jobId}&format=${targetFormat}`;
+                link.target = '_blank'; 
+                link.click();
+                } else if (data.status === 'error') {
+                eventSource.close();
+                setIsProcessing(false);
+                alert("Une erreur s'est produite.");
+                }
+            };
         } catch (error) {
-        console.error("Erreur API :", error);
-        } finally {
-        setIsProcessing(false);
+            console.error("Erreur API :", error);
+            setIsProcessing(false);
         }
     };
 

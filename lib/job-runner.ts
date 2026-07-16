@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { writeFile } from 'node:fs/promises';
+import { writeFile, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import ffmpeg from 'fluent-ffmpeg';
@@ -23,12 +23,13 @@ export async function processFfmpegJob(
         if (!file) return NextResponse.json({ error: 'Aucun fichier reçu' }, { status: 400 });
 
         const jobId = crypto.randomUUID();
-        globalStore.jobs[jobId] = { progress: 0, status: 'processing' };
+        const originalExtension = file.name.split('.').pop()?.toLowerCase() || 'tmp';
+        const baseName = file.name.slice(0, -(originalExtension.length + 1)) || file.name;
+        globalStore.jobs[jobId] = { progress: 0, status: 'processing', originalName: baseName };
 
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
         
-        const originalExtension = file.name.split('.').pop()?.toLowerCase() || 'tmp';
         const tempDir = os.tmpdir();
         const inputPath = path.join(tempDir, `${jobId}-${file.name}`);
         
@@ -38,25 +39,26 @@ export async function processFfmpegJob(
         // MOTEUR 1 : IMAGEMAGICK (Pour les formats complexes)
         // ---------------------------------------------------------
         if (COMPLEX_FORMATS.includes(originalExtension)) {
-        globalStore.jobs[jobId].progress = 40; 
-        
-        const targetFormat = formData.get('format') as string || 'png';
-        const outputPath = path.join(tempDir, `converted-${jobId}.${targetFormat}`);
-        
-        (async () => {
-            try {
-            await execPromise(`convert "${inputPath}" "${outputPath}"`);
-            globalStore.jobs[jobId].progress = 100;
-            globalStore.jobs[jobId].status = 'done';
-            globalStore.jobs[jobId].outputPath = outputPath;
-            globalStore.jobs[jobId].inputPath = inputPath;
-            } catch (err) {
-            console.error('Erreur ImageMagick:', err);
-            globalStore.jobs[jobId].status = 'error';
-            }
-        })();
+            globalStore.jobs[jobId].progress = 40; 
+            
+            const targetFormat = formData.get('format') as string || 'png';
+            const outputPath = path.join(tempDir, `converted-${jobId}.${targetFormat}`);
+            
+            (async () => {
+                try {
+                    await execPromise(`convert "${inputPath}" "${outputPath}"`);
+                    globalStore.jobs[jobId].progress = 100;
+                    globalStore.jobs[jobId].status = 'done';
+                    globalStore.jobs[jobId].outputPath = outputPath;
+                } catch (err) {
+                    console.error('Erreur ImageMagick:', err);
+                    globalStore.jobs[jobId].status = 'error';
+                } finally {
+                    await unlink(inputPath).catch((e) => console.error("Erreur suppression source:", e));
+                }
+            })();
 
-        return NextResponse.json({ jobId, targetFormat });
+            return NextResponse.json({ jobId, targetFormat });
         }
         
         // ---------------------------------------------------------
@@ -67,21 +69,22 @@ export async function processFfmpegJob(
         const outputPath = path.join(tempDir, `converted-${jobId}.${targetFormat}`);
 
         command
-        .on('progress', (progress) => {
-            if (progress.percent) {
-            globalStore.jobs[jobId].progress = Math.round(progress.percent);
-            }
-        })
-        .on('end', () => {
-            globalStore.jobs[jobId].status = 'done';
-            globalStore.jobs[jobId].outputPath = outputPath;
-            globalStore.jobs[jobId].inputPath = inputPath;
-        })
-        .on('error', (err) => {
-            console.error('Erreur FFmpeg:', err.message);
-            globalStore.jobs[jobId].status = 'error';
-        })
-        .save(outputPath);
+            .on('progress', (progress) => {
+                if (progress.percent) {
+                    globalStore.jobs[jobId].progress = Math.round(progress.percent);
+                }
+            })
+            .on('end', () => {
+                globalStore.jobs[jobId].status = 'done';
+                globalStore.jobs[jobId].outputPath = outputPath;
+                unlink(inputPath).catch((e) => console.error("Erreur suppression source:", e));
+            })
+            .on('error', (err) => {
+                console.error('Erreur FFmpeg:', err.message);
+                globalStore.jobs[jobId].status = 'error';
+                unlink(inputPath).catch((e) => console.error("Erreur suppression source:", e));
+            })
+            .save(outputPath);
 
         return NextResponse.json({ jobId, targetFormat });
 

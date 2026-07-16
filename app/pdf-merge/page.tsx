@@ -43,22 +43,23 @@ export default function PdfMergePage() {
         files.forEach((file) => formData.append('files', file));
         
         try {
-        const res = await fetch('/api/pdf/merge', { method: 'POST', body: formData });
-        if (res.ok) {
-            const blob = await res.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = "fusion-pdf.pdf";
-            a.click();
-            window.URL.revokeObjectURL(url);
-        } else {
-            alert("Une erreur est survenue lors de la fusion.");
-        }
+            const res = await fetch('/api/pdf/merge', { method: 'POST', body: formData });
+            if (res.ok) {
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const firstFileName = files[0].name.replace('.pdf', '');
+                a.download = `${firstFileName}-fusion.pdf`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+            } else {
+                alert("Une erreur est survenue lors de la fusion.");
+            }
         } catch (error) {
-        console.error("Erreur lors de la fusion:", error);
+            console.error("Erreur lors de la fusion:", error);
         } finally {
-        setIsProcessing(false);
+            setIsProcessing(false);
         }
     };
 
@@ -72,7 +73,7 @@ export default function PdfMergePage() {
 
             <header className="text-center">
             <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Fusionner vos PDF</h1>
-            <p className="text-gray-500 mt-2">Glissez vos fichiers, ils seront fusionnés dans l'ordre de la liste.</p>
+            <p className="text-gray-500 mt-2">Glissez vos fichiers, ils seront fusionnés dans l&apos;ordre de la liste.</p>
             </header>
 
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 space-y-6">
