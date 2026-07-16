@@ -72,10 +72,6 @@ export default function VideoProPage() {
     return (
         <main className="min-h-screen bg-gray-50 py-12 px-6 font-sans">
         <div className="max-w-4xl mx-auto space-y-8">
-            <Link href="/" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-black">
-            ← Retour au tableau de bord
-            </Link>
-
             <header className="text-center">
             <h1 className="text-3xl font-extrabold text-gray-900">Vidéo Professionnelle</h1>
             </header>

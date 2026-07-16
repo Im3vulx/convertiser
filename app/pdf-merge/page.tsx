@@ -66,11 +66,6 @@ export default function PdfMergePage() {
     return (
         <main className="min-h-screen bg-gray-50 py-12 px-6 font-sans">
         <div className="max-w-4xl mx-auto space-y-8">
-            <Link href="/pdf" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-black transition-colors">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-            Retour à la suite PDF
-            </Link>
-
             <header className="text-center">
             <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Fusionner vos PDF</h1>
             <p className="text-gray-500 mt-2">Glissez vos fichiers, ils seront fusionnés dans l&apos;ordre de la liste.</p>

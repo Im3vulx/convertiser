@@ -129,13 +129,6 @@ export default function ConvertPage() {
   return (
     <main className="min-h-screen bg-gray-50 py-12 px-6 font-sans">
       <div className="max-w-4xl mx-auto space-y-8">
-        
-        {/* Bouton Retour */}
-        <Link href="/" className="inline-flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-          Retour au tableau de bord
-        </Link>
-
         <header className="text-center">
           <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Convertir IMAGE / VIDEO</h1>
           <p className="mt-2 text-gray-500">Modifiez le format de vos fichiers multimédias instantanément</p>
