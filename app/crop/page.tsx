@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 
 type JobState = { file: File; progress: number; status: 'idle' | 'converting' | 'done' | 'error'; previewUrl?: string; };
 
@@ -150,31 +151,41 @@ export default function CropPage() {
             {jobs.length > 0 && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <ul className="divide-y divide-gray-100">
-                {jobs.map((job, i) => (
-                    <li key={i} className="p-4 flex items-center gap-4">
-                    <div className="w-14 h-14 bg-gray-100 rounded-lg shrink-0 overflow-hidden flex items-center justify-center border border-gray-200">
-                        {job.previewUrl ? (<img src={job.previewUrl} alt="preview" className="object-cover w-full h-full" />) : (<span className="text-xs font-medium text-gray-400">...</span>)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 truncate text-sm">{job.file.name}</p>
-                        {job.status !== 'idle' ? (
-                        <div className="w-full bg-gray-200 rounded-full h-2 mt-2.5 overflow-hidden">
-                            <div className={`h-2 rounded-full transition-all duration-300 ease-out ${job.status === 'done' ? 'bg-green-500' : job.status === 'error' ? 'bg-red-500' : 'bg-blue-600'}`} style={{ width: `${job.progress}%` }}></div>
-                        </div>
-                        ) : ( <p className="text-xs text-gray-500 mt-1">Prêt pour le rognage</p> )}
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <span className={`text-sm font-medium w-20 text-right ${job.status === 'done' ? 'text-green-600' : job.status === 'error' ? 'text-red-600' : 'text-gray-500'}`}>
-                        {job.status === 'done' ? 'Terminé' : job.status === 'error' ? 'Erreur' : job.status === 'idle' ? '' : `${job.progress}%`}
-                        </span>
-                        {job.status !== 'converting' && (
-                        <button onClick={() => removeJob(i)} className="text-gray-400 hover:text-red-500 p-1">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                        </button>
-                        )}
-                    </div>
-                    </li>
-                ))}
+                    <AnimatePresence mode="popLayout">
+                        {jobs.map((job, i) => (
+                            <motion.li 
+                                layout
+                                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, x: -50, transition: { duration: 0.2 } }}
+                                transition={{ duration: 0.2 }}
+                                key={`${job.name}-${i}`}
+                                className="p-4 flex items-center gap-4"
+                            >
+                            <div className="w-14 h-14 bg-gray-100 rounded-lg shrink-0 overflow-hidden flex items-center justify-center border border-gray-200">
+                                {job.previewUrl ? (<img src={job.previewUrl} alt="preview" className="object-cover w-full h-full" />) : (<span className="text-xs font-medium text-gray-400">...</span>)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="font-medium text-gray-900 truncate text-sm">{job.file.name}</p>
+                                {job.status !== 'idle' ? (
+                                <div className="w-full bg-gray-200 rounded-full h-2 mt-2.5 overflow-hidden">
+                                    <div className={`h-2 rounded-full transition-all duration-300 ease-out ${job.status === 'done' ? 'bg-green-500' : job.status === 'error' ? 'bg-red-500' : 'bg-blue-600'}`} style={{ width: `${job.progress}%` }}></div>
+                                </div>
+                                ) : ( <p className="text-xs text-gray-500 mt-1">Prêt pour le rognage</p> )}
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <span className={`text-sm font-medium w-20 text-right ${job.status === 'done' ? 'text-green-600' : job.status === 'error' ? 'text-red-600' : 'text-gray-500'}`}>
+                                {job.status === 'done' ? 'Terminé' : job.status === 'error' ? 'Erreur' : job.status === 'idle' ? '' : `${job.progress}%`}
+                                </span>
+                                {job.status !== 'converting' && (
+                                <button onClick={() => removeJob(i)} className="text-gray-400 hover:text-red-500 p-1">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                </button>
+                                )}
+                            </div>
+                            </motion.li>
+                        ))}
+                    </AnimatePresence>
                 </ul>
             </div>
             )}

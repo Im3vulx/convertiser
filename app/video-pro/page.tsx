@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { toast } from 'sonner'; 
+import { motion, AnimatePresence } from 'framer-motion';
 
 type JobState = { file: File; progress: number; status: 'idle' | 'converting' | 'done' | 'error'; previewUrl?: string; };
 
@@ -110,17 +111,27 @@ export default function VideoProPage() {
             {jobs.length > 0 && (
             <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
                 <ul className="divide-y divide-gray-100">
-                {jobs.map((job, i) => (
-                    <li key={i} className="p-4 flex items-center gap-4">
-                    <div className="w-14 h-14 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center border">
-                        {job.previewUrl ? <img src={job.previewUrl} className="object-cover w-full h-full" /> : <span className="text-xs text-gray-400">...</span>}
-                    </div>
-                    <div className="flex-1">
-                        <p className="font-medium text-sm text-gray-900 truncate">{job.file.name}</p>
-                        <div className="w-full bg-gray-200 rounded-full h-2 mt-2"><div className={`h-2 rounded-full ${job.status === 'done' ? 'bg-green-500' : 'bg-blue-600'}`} style={{ width: `${job.progress}%` }}></div></div>
-                    </div>
-                    </li>
-                ))}
+                    <AnimatePresence mode="popLayout">
+                        {jobs.map((job, i) => (
+                            <motion.li 
+                                layout
+                                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, x: -50, transition: { duration: 0.2 } }}
+                                transition={{ duration: 0.2 }}
+                                key={`${job.name}-${i}`}
+                                className="p-4 flex items-center gap-4"
+                            >
+                            <div className="w-14 h-14 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center border">
+                                {job.previewUrl ? <img src={job.previewUrl} className="object-cover w-full h-full" /> : <span className="text-xs text-gray-400">...</span>}
+                            </div>
+                            <div className="flex-1">
+                                <p className="font-medium text-sm text-gray-900 truncate">{job.file.name}</p>
+                                <div className="w-full bg-gray-200 rounded-full h-2 mt-2"><div className={`h-2 rounded-full ${job.status === 'done' ? 'bg-green-500' : 'bg-blue-600'}`} style={{ width: `${job.progress}%` }}></div></div>
+                            </div>
+                            </motion.li>
+                        ))}
+                    </AnimatePresence>
                 </ul>
             </div>
             )}

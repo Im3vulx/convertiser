@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function PdfMergePage() {
     const [files, setFiles] = useState<File[]>([]);
@@ -105,21 +106,31 @@ export default function PdfMergePage() {
                 <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
                 <h3 className="font-bold text-gray-900 mb-3 text-sm">Fichiers dans la file d&apos;attente ({files.length}) :</h3>
                 <ul className="space-y-2">
+                    <AnimatePresence mode="popLayout">
                     {files.map((f, i) => (
-                    <li key={i} className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm text-sm">
+                        <motion.li 
+                        layout
+                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, x: -50, transition: { duration: 0.2 } }}
+                        transition={{ duration: 0.2 }}
+                        key={`${f.name}-${i}`}
+                        className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm text-sm"
+                        >
                         <div className="flex items-center gap-3 overflow-hidden">
-                        <span className="bg-black text-white px-2.5 py-1 rounded-md text-[11px] font-bold shrink-0">{i + 1}</span>
-                        <span className="truncate font-medium text-gray-700">{f.name}</span>
+                            <span className="bg-black text-white px-2.5 py-1 rounded-md text-[11px] font-bold shrink-0">{i + 1}</span>
+                            <span className="truncate font-medium text-gray-700">{f.name}</span>
                         </div>
                         <button 
-                        onClick={() => removeFile(i)}
-                        disabled={isProcessing}
-                        className="ml-2 text-gray-400 hover:text-red-500 transition-colors focus:outline-none"
+                            onClick={() => removeFile(i)}
+                            disabled={isProcessing}
+                            className="ml-2 text-gray-400 hover:text-red-500 transition-colors focus:outline-none"
                         >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                         </button>
-                    </li>
+                        </motion.li>
                     ))}
+                    </AnimatePresence>
                 </ul>
                 </div>
             )}
