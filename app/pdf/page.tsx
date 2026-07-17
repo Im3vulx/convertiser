@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 
 export default function PdfPage() {
     const [isDragging, setIsDragging] = useState(false);
@@ -53,11 +54,12 @@ export default function PdfPage() {
                 } else if (data.status === 'error') {
                 eventSource.close();
                 setIsProcessing(false);
-                alert("Une erreur s'est produite.");
+                toast.error("Une erreur s'est produite lors du traitement du PDF.");
                 }
             };
         } catch (error) {
             console.error("Erreur API :", error);
+            toast.error("Une erreur s'est produite lors de l'appel à l'API.");
             setIsProcessing(false);
         }
     };
@@ -66,8 +68,8 @@ export default function PdfPage() {
         <main className="min-h-screen bg-gray-50 py-12 px-6 font-sans">
         <div className="max-w-4xl mx-auto space-y-8">
             <header className="text-center">
-            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Outils PDF</h1>
-            <p className="text-gray-500 mt-2">Manipulation et optimisation de documents</p>
+                <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Outils PDF</h1>
+                <p className="text-gray-500 mt-2">Manipulation et optimisation de documents</p>
             </header>
 
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 space-y-6">

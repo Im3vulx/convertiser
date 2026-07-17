@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
+import { toast } from 'sonner';
 
 type JobState = { file: File; progress: number; status: 'idle' | 'converting' | 'done' | 'error'; previewUrl?: string; };
 
@@ -86,7 +86,10 @@ export default function ResizePage() {
             updateJobState(index, { status: 'error' });
             }
         };
-        } catch (error) { updateJobState(index, { status: 'error' }); }
+        } catch (error) { 
+            updateJobState(index, { status: 'error' });
+            toast.error("Une erreur est survenue lors du redimensionnement du fichier.");
+        }
     };
 
     const updateJobState = (index: number, updates: Partial<JobState>) => {

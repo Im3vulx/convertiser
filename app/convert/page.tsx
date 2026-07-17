@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
+import { toast } from 'sonner';
 
 type JobState = {
   file: File;
@@ -109,6 +109,7 @@ export default function ConvertPage() {
     } catch (error) {
       console.error('Erreur réseau:', error);
       updateJobState(index, { status: 'error' });
+      toast.error("Erreur de connexion au serveur.");
     }
   };
 

@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import Link from "next/link";
+import { toast } from "sonner";
 
 type JobState = {
     file: File;
@@ -46,9 +46,9 @@ export default function CompressPage() {
     const processFiles = async (files: File[] | FileList) => {
         const filesArray = Array.from(files);
         const newJobs: JobState[] = filesArray.map((file) => ({
-        file,
-        progress: 0,
-        status: "idle",
+            file,
+            progress: 0,
+            status: "idle",
         }));
 
         setJobs((prev) => [...prev, ...newJobs]);
@@ -97,30 +97,31 @@ export default function CompressPage() {
         formData.append("compressionLevel", compressionLevel);
 
         try {
-        const response = await fetch('/api/compress', { method: 'POST', body: formData });
-        const { jobId, targetFormat } = await response.json();
-        if (!jobId) throw new Error("Erreur d'initialisation");
+            const response = await fetch('/api/compress', { method: 'POST', body: formData });
+            const { jobId, targetFormat } = await response.json();
+            if (!jobId) throw new Error("Erreur d'initialisation");
 
-        const eventSource = new EventSource(`/api/progress?jobId=${jobId}`);
-        eventSource.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            updateJobState(index, { progress: data.progress });
+            const eventSource = new EventSource(`/api/progress?jobId=${jobId}`);
+            eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                updateJobState(index, { progress: data.progress });
 
-            if (data.status === "done") {
-            eventSource.close();
-            updateJobState(index, { status: "done", progress: 100 });
-            const link = document.createElement("a");
-            link.href = `/api/download?jobId=${jobId}&format=${targetFormat}`;
-            link.target = "_blank";
-            link.click();
-            } else if (data.status === "error") {
-            eventSource.close();
-            updateJobState(index, { status: "error" });
-            }
-        };
+                if (data.status === "done") {
+                eventSource.close();
+                updateJobState(index, { status: "done", progress: 100 });
+                const link = document.createElement("a");
+                link.href = `/api/download?jobId=${jobId}&format=${targetFormat}`;
+                link.target = "_blank";
+                link.click();
+                } else if (data.status === "error") {
+                eventSource.close();
+                updateJobState(index, { status: "error" });
+                }
+            };
         } catch (error) {
-        console.error("Erreur réseau:", error);
-        updateJobState(index, { status: "error" });
+            console.error("Erreur réseau:", error);
+            updateJobState(index, { status: "error" });
+            toast.error("Erreur de connexion au serveur.");
         }
     };
 

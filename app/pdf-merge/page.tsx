@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
+import { toast } from 'sonner';
 
 export default function PdfMergePage() {
     const [files, setFiles] = useState<File[]>([]);
@@ -36,8 +36,13 @@ export default function PdfMergePage() {
     };
 
     const handleMerge = async () => {
-        if (files.length < 2) return alert("Veuillez sélectionner au moins 2 fichiers PDF");
+        if (files.length < 2) {
+            toast.error("Veuillez sélectionner au moins 2 fichiers PDF");
+            return;
+        }
         setIsProcessing(true);
+
+        const toastId = toast.loading("Fusion de vos documents en cours...");
 
         const formData = new FormData();
         files.forEach((file) => formData.append('files', file));
@@ -53,11 +58,13 @@ export default function PdfMergePage() {
                 a.download = `${firstFileName}-fusion.pdf`;
                 a.click();
                 window.URL.revokeObjectURL(url);
+                toast.success("Fusion terminée avec succès !", { id: toastId });
             } else {
-                alert("Une erreur est survenue lors de la fusion.");
+                toast.error("Une erreur est survenue lors de la fusion.", { id: toastId });
             }
         } catch (error) {
             console.error("Erreur lors de la fusion:", error);
+            toast.error("Erreur de connexion au serveur.", { id: toastId });
         } finally {
             setIsProcessing(false);
         }

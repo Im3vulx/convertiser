@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
+import { toast } from 'sonner';
 
 type JobState = { file: File; progress: number; status: 'idle' | 'converting' | 'done' | 'error'; previewUrl?: string; };
 
@@ -17,8 +17,8 @@ export default function RemoveBgPage() {
         const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
         
         if (imageFiles.length === 0) {
-        alert("Cet outil ne fonctionne qu'avec des images (JPG, PNG, etc.)");
-        return;
+            toast.error("Cet outil ne fonctionne qu'avec des images (JPG, PNG, etc.)");
+            return;
         }
 
         const newJobs: JobState[] = imageFiles.map(file => ({ file, progress: 0, status: 'idle' }));
@@ -71,7 +71,10 @@ export default function RemoveBgPage() {
             updateJobState(index, { status: 'error' });
             }
         };
-        } catch (error) { updateJobState(index, { status: 'error' }); }
+        } catch (error) { 
+            updateJobState(index, { status: 'error' }); 
+            toast.error("Une erreur est survenue lors du détourage de l'image.");
+        }
     };
 
     const updateJobState = (index: number, updates: Partial<JobState>) => {

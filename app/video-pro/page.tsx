@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
+import { toast } from 'sonner'; 
 
 type JobState = { file: File; progress: number; status: 'idle' | 'converting' | 'done' | 'error'; previewUrl?: string; };
 
@@ -60,7 +60,10 @@ export default function VideoProPage() {
             link.target = '_blank'; link.click();
             }
         };
-        } catch { updateJobState(index, { status: 'error' }); }
+        } catch { 
+            updateJobState(index, { status: 'error' });
+            toast.error(`Erreur lors du traitement de ${job.file.name}`);
+        }
     };
 
     const updateJobState = (index: number, updates: Partial<JobState>) => {

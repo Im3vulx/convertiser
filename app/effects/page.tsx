@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
+import { toast } from 'sonner';
 
 type JobState = {
     file: File;
@@ -70,7 +70,10 @@ export default function EffectsPage() {
             updateJobState(index, { status: 'error' });
             }
         };
-        } catch (error) { updateJobState(index, { status: 'error' }); }
+        } catch (error) { 
+            updateJobState(index, { status: 'error' });
+            toast.error(`Erreur lors du traitement de ${job.file.name}`);
+        }
     };
 
     const handleProcessAll = () => {
