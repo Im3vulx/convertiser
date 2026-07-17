@@ -20,5 +20,5 @@ export async function POST(request: Request) {
         }
 
         return action === 'extract-audio' ? 'mp3' : 'mp4';
-    });
+    }, 'video');
 }

@@ -7,6 +7,8 @@ import crypto from 'node:crypto';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 
+import { getAllowedExtensions, type FileCategory } from '@/lib/file-validation';
+
 const execPromise = promisify(exec);
 const globalStore = global as any;
 if (!globalStore.jobs) globalStore.jobs = {};
@@ -15,15 +17,35 @@ const COMPLEX_FORMATS = ['heic', 'psd', 'svg', 'cr2', 'nef', 'dng', 'raw'];
 
 export async function processFfmpegJob(
     request: Request,
-    buildOptions: (command: ffmpeg.FfmpegCommand, formData: FormData, originalExt: string) => string
+    buildOptions: (command: ffmpeg.FfmpegCommand, formData: FormData, originalExt: string) => string,
+    allowedCategory: FileCategory = 'media'
 ) {
     try {
         const formData = await request.formData();
         const file = formData.get('file') as unknown as File;
         if (!file) return NextResponse.json({ error: 'Aucun fichier reçu' }, { status: 400 });
 
-        const jobId = crypto.randomUUID();
+        // ---------------------------------------------------------
+        // 🛡️ SÉCURITÉ : VALIDATION DU FICHIER CÔTÉ SERVEUR
+        // ---------------------------------------------------------
+        const MAX_FILE_SIZE = 500 * 1024 * 1024; 
+        if (file.size > MAX_FILE_SIZE) {
+            return NextResponse.json(
+                { error: 'Fichier trop volumineux. La limite est de 500 Mo.' }, 
+                { status: 413 }
+            );
+        }
+
         const originalExtension = file.name.split('.').pop()?.toLowerCase() || 'tmp';
+        const allowedExtensions = getAllowedExtensions(allowedCategory);
+        if (!allowedExtensions.includes(originalExtension)) {
+            return NextResponse.json(
+                { error: `Format non supporté pour cet outil : .${originalExtension}` }, 
+                { status: 415 }
+            );
+        }
+
+        const jobId = crypto.randomUUID();
         const baseName = file.name.slice(0, -(originalExtension.length + 1)) || file.name;
         globalStore.jobs[jobId] = { progress: 0, status: 'processing', originalName: baseName };
 

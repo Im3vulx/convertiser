@@ -1,6 +1,7 @@
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import fs from 'node:fs/promises';
+import { isPdfFile } from '@/lib/file-validation';
 
 const execPromise = promisify(exec);
 
@@ -12,6 +13,16 @@ export async function POST(request: Request) {
     const outputPath = `/tmp/merged-${Date.now()}.pdf`;
 
     try {
+        if (files.length === 0) {
+            return new Response('Aucun fichier reçu', { status: 400 });
+        }
+
+        for (const f of files) {
+            if (!isPdfFile(f)) {
+                return new Response(`Format non supporté : ${f.name}`, { status: 415 });
+            }
+        }
+
         for (const f of files) {
         const p = `/tmp/${Date.now()}-${f.name}`;
         await fs.writeFile(p, Buffer.from(await f.arrayBuffer()));

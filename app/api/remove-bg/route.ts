@@ -4,6 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
 import { removeBackground } from '@imgly/background-removal-node';
+import { isImageFile } from '@/lib/file-validation';
 
 const globalStore = global as any;
 if (!globalStore.jobs) globalStore.jobs = {};
@@ -14,6 +15,10 @@ export async function POST(request: Request) {
         const file = formData.get('file') as unknown as File;
         
         if (!file) return NextResponse.json({ error: 'Aucun fichier' }, { status: 400 });
+
+        if (!isImageFile(file)) {
+            return NextResponse.json({ error: 'Seules les images sont acceptées' }, { status: 415 });
+        }
 
         const jobId = crypto.randomUUID();
         globalStore.jobs[jobId] = { progress: 0, status: 'processing' };
@@ -32,12 +37,12 @@ export async function POST(request: Request) {
             globalStore.jobs[jobId].progress = 25;
             
             const aiOptions = {
-                model: 'medium',
+                model: 'medium' as const,
                 output: {
-                    format: 'image/png',
-                    quality: 1.0, 
-                    type: 'foreground'
-                }
+                    format: 'image/png' as const,
+                    quality: 1.0,
+                    type: 'foreground' as const,
+                },
             };
             
             const blob = await removeBackground(inputPath, aiOptions);

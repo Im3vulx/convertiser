@@ -3,11 +3,42 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
+const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Octet';
+    const k = 1024;
+    const sizes = ['Octets', 'Ko', 'Mo', 'Go'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
 export default function PdfPage() {
     const [isDragging, setIsDragging] = useState(false);
     const [action, setAction] = useState('compress');
     const [file, setFile] = useState<File | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
+
+    const MAX_FILE_SIZE = 50 * 1024 * 1024;
+
+    const validateAndSetFile = (selectedFile: File) => {
+        if (selectedFile.type !== 'application/pdf' && !selectedFile.name.toLowerCase().endsWith('.pdf')) {
+            toast.error("Format invalide", {
+                description: `Le fichier "${selectedFile.name}" n'est pas un PDF.`
+            });
+            return;
+        }
+
+        if (selectedFile.size > MAX_FILE_SIZE) {
+            toast.error("Fichier trop volumineux", {
+                description: `Votre fichier fait ${formatFileSize(selectedFile.size)}. La limite est de 50 Mo.`
+            });
+            return;
+        }
+
+        setFile(selectedFile);
+        toast.success("Fichier accepté", {
+            description: `${selectedFile.name} (${formatFileSize(selectedFile.size)}) est prêt.`
+        });
+    };
 
     const onDragOver = (e: React.DragEvent) => {
         e.preventDefault();
@@ -23,43 +54,50 @@ export default function PdfPage() {
         e.preventDefault();
         setIsDragging(false);
         if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        setFile(e.dataTransfer.files[0]);
+            validateAndSetFile(e.dataTransfer.files[0]);
         }
     };
 
     const handleProcess = async () => {
         if (!file) return;
         setIsProcessing(true);
+        const toastId = toast.loading("Traitement en cours...");
+
         const formData = new FormData();
         formData.append('file', file);
         formData.append('action', action);
         
         try {
             const res = await fetch('/api/pdf', { method: 'POST', body: formData });
+
+            if (!res.ok) throw new Error("Erreur serveur");
+
             const { jobId, targetFormat } = await res.json();
-            
+
             const eventSource = new EventSource(`/api/progress?jobId=${jobId}`);
             
             eventSource.onmessage = (event) => {
                 const data = JSON.parse(event.data);
                 
                 if (data.status === 'done') {
-                eventSource.close();
-                setIsProcessing(false);
-                
-                const link = document.createElement('a');
-                link.href = `/api/download?jobId=${jobId}&format=${targetFormat}`;
-                link.target = '_blank'; 
-                link.click();
+                    eventSource.close();
+                    setIsProcessing(false);
+                    
+                    const link = document.createElement('a');
+                    link.href = `/api/download?jobId=${jobId}&format=${targetFormat}`;
+                    link.target = '_blank'; 
+                    link.click();
+
+                    toast.success("Opération terminée !", { id: toastId });
                 } else if (data.status === 'error') {
-                eventSource.close();
-                setIsProcessing(false);
-                toast.error("Une erreur s'est produite lors du traitement du PDF.");
+                    eventSource.close();
+                    setIsProcessing(false);
+                    toast.error("Une erreur s'est produite lors du traitement du PDF.", { id: toastId });
                 }
             };
         } catch (error) {
             console.error("Erreur API :", error);
-            toast.error("Une erreur s'est produite lors de l'appel à l'API.");
+            toast.error("Une erreur s'est produite lors de l'appel à l'API.", { id: toastId });
             setIsProcessing(false);
         }
     };
@@ -86,32 +124,41 @@ export default function PdfPage() {
                 </select>
             </div>
             
-            {/* Zone de Drag and Drop sécurisée et confinée */}
             <div 
                 onDragOver={onDragOver} 
                 onDragLeave={onDragLeave} 
                 onDrop={onDrop}
-                className={`relative border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-200 ease-in-out ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white hover:bg-gray-50'}`}
+                className={`relative border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-200 ease-in-out ${isDragging ? 'border-blue-500 bg-blue-50 scale-[1.02]' : 'border-gray-300 bg-white hover:bg-gray-50'}`}
             >
                 <input 
                 type="file" 
                 accept=".pdf"
                 disabled={isProcessing}
-                onChange={(e) => e.target.files && setFile(e.target.files[0])}
+                // Utilisation de la validation ici aussi
+                onChange={(e) => e.target.files && validateAndSetFile(e.target.files[0])}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 />
                 <div className="pointer-events-none">
-                <h3 className="text-lg font-medium text-gray-900">
-                    {file ? file.name : "Glissez-déposez votre PDF ici"}
-                </h3>
-                <p className="text-sm text-gray-500 mt-1">ou cliquez pour parcourir votre ordinateur</p>
+                {file ? (
+                    <>
+                        <h3 className="text-lg font-bold text-blue-600 truncate px-4">{file.name}</h3>
+                        <span className="inline-block mt-2 bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-medium">
+                            {formatFileSize(file.size)}
+                        </span>
+                    </>
+                ) : (
+                    <>
+                        <h3 className="text-lg font-medium text-gray-900">Glissez-déposez votre PDF ici</h3>
+                        <p className="text-sm text-gray-500 mt-1">ou cliquez pour parcourir (Max: 50 Mo)</p>
+                    </>
+                )}
                 </div>
             </div>
 
             <button 
                 onClick={handleProcess} 
                 disabled={!file || isProcessing}
-                className="w-full bg-black text-white py-4 rounded-xl font-bold hover:bg-gray-800 disabled:bg-gray-300 transition-all"
+                className="w-full bg-black text-white py-4 rounded-xl font-bold hover:bg-gray-800 disabled:bg-gray-300 transition-all active:scale-[0.98]"
             >
                 {isProcessing ? 'Traitement en cours...' : 'Traiter le document'}
             </button>

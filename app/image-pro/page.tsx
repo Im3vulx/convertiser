@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getAcceptAttribute, getValidFilesOrNotify } from '@/lib/client-files';
 
 type JobState = {
     file: File;
@@ -20,17 +21,35 @@ export default function ImageProPage() {
         return undefined;
     };
 
-    const processFiles = async (files: FileList | null) => {
-        if (!files) return;
-        const newJobs: JobState[] = Array.from(files).map(file => ({ file, progress: 0, status: 'idle' }));
-        setJobs(prev => [...prev, ...newJobs]);
+    const processFiles = async (files: File[] | FileList) => {
+        const imageFiles = getValidFilesOrNotify(files, 'image');
+        if (imageFiles.length === 0) return;
+
+        const newJobs: JobState[] = imageFiles.map((file) => ({ file, progress: 0, status: 'idle' }));
+        setJobs((prev) => [...prev, ...newJobs]);
 
         for (let i = 0; i < newJobs.length; i++) {
-        const previewUrl = await generatePreview(newJobs[i].file);
-        if (previewUrl) {
-            updateJobState(jobs.length + i, { previewUrl });
+            const previewUrl = await generatePreview(newJobs[i].file);
+            if (previewUrl) {
+                setJobs((currentJobs) => {
+                    const updated = [...currentJobs];
+                    const targetIndex = updated.findIndex((j) => j.file === newJobs[i].file);
+                    if (targetIndex !== -1) updated[targetIndex].previewUrl = previewUrl;
+                    return updated;
+                });
+            }
         }
-        }
+    };
+
+    const onDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
+    const onDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false);
+    };
+    const onDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+        if (e.dataTransfer.files?.length > 0) processFiles(e.dataTransfer.files);
     };
 
     const updateJobState = (index: number, updates: Partial<JobState>) => {
@@ -101,8 +120,26 @@ export default function ImageProPage() {
             </button>
             </div>
 
-            <div onDragOver={(e) => {e.preventDefault(); setIsDragging(true)}} onDragLeave={() => setIsDragging(false)} onDrop={(e) => { e.preventDefault(); setIsDragging(false); processFiles(e.dataTransfer.files); }} className={`border-2 border-dashed rounded-2xl p-12 text-center ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}>
-            <h3 className="font-medium text-gray-900">Glissez-déposez vos images ici</h3>
+            <div
+                onDragOver={onDragOver}
+                onDragLeave={onDragLeave}
+                onDrop={onDrop}
+                className={`relative border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-200 ease-in-out ${
+                    isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white hover:bg-gray-50'
+                }`}
+            >
+                <input
+                    type="file"
+                    multiple
+                    accept={getAcceptAttribute('image')}
+                    disabled={isProcessing}
+                    onChange={(e) => e.target.files && processFiles(e.target.files)}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                <div className="pointer-events-none">
+                    <h3 className="text-lg font-medium text-gray-900">Glissez-déposez vos images ici</h3>
+                    <p className="mt-1 text-sm text-gray-500">ou cliquez pour parcourir (JPG, PNG, WebP, GIF…)</p>
+                </div>
             </div>
 
             {jobs.length > 0 && (
@@ -116,7 +153,7 @@ export default function ImageProPage() {
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                 exit={{ opacity: 0, x: -50, transition: { duration: 0.2 } }}
                                 transition={{ duration: 0.2 }}
-                                key={`${job.name}-${i}`}
+                                key={`${job.file.name}-${i}`}
                                 className="p-4 flex items-center gap-4"
                             >
                             <div className="w-14 h-14 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center border">

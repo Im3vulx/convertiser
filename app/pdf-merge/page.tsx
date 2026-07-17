@@ -1,12 +1,57 @@
 'use client';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+
+const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Octet';
+    const k = 1024;
+    const sizes = ['Octets', 'Ko', 'Mo', 'Go'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
 
 export default function PdfMergePage() {
     const [files, setFiles] = useState<File[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
+
+    const MAX_FILE_SIZE = 50 * 1024 * 1024;
+
+    const validateAndAddFiles = (fileList: FileList | File[]) => {
+        const incomingFiles = Array.from(fileList);
+        const validFiles: File[] = [];
+        let errorCount = 0;
+
+        incomingFiles.forEach((file) => {
+            if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+                toast.error("Format invalide", {
+                    description: `"${file.name}" n'est pas un PDF et a été ignoré.`
+                });
+                errorCount++;
+                return;
+            }
+
+            if (file.size > MAX_FILE_SIZE) {
+                toast.error("Fichier trop lourd", {
+                    description: `"${file.name}" dépasse la limite de 50 Mo.`
+                });
+                errorCount++;
+                return;
+            }
+
+            validFiles.push(file);
+        });
+
+        if (validFiles.length > 0) {
+            setFiles(prev => [...prev, ...validFiles]);
+            if (errorCount === 0) {
+                toast.success(validFiles.length > 1 ? `${validFiles.length} fichiers ajoutés` : `Fichier ajouté`, {
+                    description: "Prêt pour la fusion."
+                });
+            }
+        }
+    };
 
     const onDragOver = (e: React.DragEvent) => {
         e.preventDefault();
@@ -22,14 +67,15 @@ export default function PdfMergePage() {
         e.preventDefault();
         setIsDragging(false);
         if (e.dataTransfer.files) {
-        setFiles(prev => [...prev, ...Array.from(e.dataTransfer.files!)]);
+            validateAndAddFiles(e.dataTransfer.files);
         }
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
-        setFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+            validateAndAddFiles(e.target.files);
         }
+        e.target.value = '';
     };
 
     const removeFile = (indexToRemove: number) => {
@@ -81,12 +127,11 @@ export default function PdfMergePage() {
 
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 space-y-6">
             
-            {/* Zone de Drag and Drop sécurisée et confinée */}
             <div 
                 onDragOver={onDragOver} 
                 onDragLeave={onDragLeave} 
                 onDrop={onDrop}
-                className={`relative border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-200 ease-in-out ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white hover:bg-gray-50'}`}
+                className={`relative border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-200 ease-in-out ${isDragging ? 'border-blue-500 bg-blue-50 scale-[1.02]' : 'border-gray-300 bg-white hover:bg-gray-50'}`}
             >
                 <input 
                 type="file" 
@@ -98,7 +143,7 @@ export default function PdfMergePage() {
                 />
                 <div className="pointer-events-none">
                 <h3 className="text-lg font-medium text-gray-900">Glissez-déposez vos fichiers PDF ici</h3>
-                <p className="text-sm text-gray-500 mt-1">ou cliquez dans cette zone pour parcourir</p>
+                <p className="text-sm text-gray-500 mt-1">ou cliquez dans cette zone pour parcourir (Max: 50 Mo/fichier)</p>
                 </div>
             </div>
 
@@ -120,6 +165,7 @@ export default function PdfMergePage() {
                         <div className="flex items-center gap-3 overflow-hidden">
                             <span className="bg-black text-white px-2.5 py-1 rounded-md text-[11px] font-bold shrink-0">{i + 1}</span>
                             <span className="truncate font-medium text-gray-700">{f.name}</span>
+                            <span className="text-xs text-gray-400 font-mono shrink-0">({formatFileSize(f.size)})</span>
                         </div>
                         <button 
                             onClick={() => removeFile(i)}
@@ -138,7 +184,7 @@ export default function PdfMergePage() {
             <button 
                 onClick={handleMerge} 
                 disabled={isProcessing || files.length < 2}
-                className="w-full bg-black text-white py-4 rounded-xl font-bold hover:bg-gray-800 disabled:bg-gray-300 transition-all"
+                className="w-full bg-black text-white py-4 rounded-xl font-bold hover:bg-gray-800 disabled:bg-gray-300 transition-all active:scale-[0.98]"
             >
                 {isProcessing ? 'Fusion en cours...' : `Fusionner les ${files.length} fichiers`}
             </button>

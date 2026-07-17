@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getAcceptAttribute, getValidFilesOrNotify } from '@/lib/client-files';
 
 type JobState = { file: File; progress: number; status: 'idle' | 'converting' | 'done' | 'error'; previewUrl?: string; };
 
@@ -15,12 +16,8 @@ export default function RemoveBgPage() {
     };
 
     const processFiles = async (files: File[] | FileList) => {
-        const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
-        
-        if (imageFiles.length === 0) {
-            toast.error("Cet outil ne fonctionne qu'avec des images (JPG, PNG, etc.)");
-            return;
-        }
+        const imageFiles = getValidFilesOrNotify(files, 'image');
+        if (imageFiles.length === 0) return;
 
         const newJobs: JobState[] = imageFiles.map(file => ({ file, progress: 0, status: 'idle' }));
         setJobs(prev => [...prev, ...newJobs]);
@@ -99,7 +96,7 @@ export default function RemoveBgPage() {
             </div>
 
             <div onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop} className={`relative border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-200 ease-in-out ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white hover:bg-gray-50'}`}>
-            <input type="file" multiple accept="image/*" disabled={isProcessing} onChange={(e) => e.target.files && processFiles(e.target.files)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+            <input type="file" multiple accept={getAcceptAttribute('image')} disabled={isProcessing} onChange={(e) => e.target.files && processFiles(e.target.files)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
             <div className="pointer-events-none">
                 <h3 className="text-lg font-medium text-gray-900">Glissez-déposez vos images ici</h3>
                 <p className="mt-1 text-sm text-gray-500">Formats supportés : JPG, PNG, WebP</p>
@@ -117,7 +114,7 @@ export default function RemoveBgPage() {
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                 exit={{ opacity: 0, x: -50, transition: { duration: 0.2 } }}
                                 transition={{ duration: 0.2 }}
-                                key={`${job.name}-${i}`}
+                                key={`${job.file.name}-${i}`}
                                 className="p-4 flex items-center gap-4"
                             >
                             <div className="w-14 h-14 bg-gray-100 rounded-lg shrink-0 overflow-hidden flex items-center justify-center border border-gray-200">

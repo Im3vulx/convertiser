@@ -1,7 +1,8 @@
 'use client';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { motion, AnimatePresence } from 'framer-motion';
+import { getAcceptAttribute, getValidFilesOrNotify } from '@/lib/client-files';
+import { motion, AnimatePresence } from 'framer-motion';
 
 type JobState = {
   file: File;
@@ -41,8 +42,10 @@ export default function ConvertPage() {
   };
 
   const processFiles = async (files: File[] | FileList) => {
-    const filesArray = Array.from(files);
-    const newJobs: JobState[] = filesArray.map(file => ({
+    const validFiles = getValidFilesOrNotify(files, 'media');
+    if (validFiles.length === 0) return;
+
+    const newJobs: JobState[] = validFiles.map(file => ({
       file,
       progress: 0,
       status: 'idle'
@@ -182,7 +185,7 @@ export default function ConvertPage() {
           }`}
         >
           <input 
-            type="file" multiple disabled={isProcessing}
+            type="file" multiple accept={getAcceptAttribute('media')} disabled={isProcessing}
             onChange={(e) => e.target.files && processFiles(e.target.files)} 
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           />
@@ -204,7 +207,7 @@ export default function ConvertPage() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, x: -50, transition: { duration: 0.2 } }}
                     transition={{ duration: 0.2 }}
-                    key={`${job.name}-${i}`}
+                    key={`${job.file.name}-${i}`}
                     className="p-4 flex items-center gap-4"
                   >
                     <div className="w-14 h-14 bg-gray-100 rounded-lg shrink-0 overflow-hidden flex items-center justify-center border border-gray-200">

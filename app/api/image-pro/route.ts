@@ -9,5 +9,5 @@ export async function POST(request: Request) {
         
         if (action === 'gif') return 'gif';
         return 'png';
-    });
+    }, 'image');
 }
