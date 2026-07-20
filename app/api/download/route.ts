@@ -23,20 +23,31 @@ export async function GET(request: Request) {
     try {
         const fileBuffer = await readFile(filePath);
         
-        unlink(filePath).catch((err) => console.error("Erreur de nettoyage disque:", err));
+        setTimeout(() => {
+            unlink(filePath).catch((err) => console.error("Erreur de nettoyage disque:", err));
 
-        if (globalStore.jobs && globalStore.jobs[jobId]) {
-        delete globalStore.jobs[jobId];
-        console.log(`[Mémoire] Job ${jobId} supprimé de la RAM avec succès.`);
-        }
+            if (globalStore.jobs && globalStore.jobs[jobId]) {
+                delete globalStore.jobs[jobId];
+                console.log(`[Mémoire] Job ${jobId} définitivement supprimé après 30s.`);
+            }
+        }, 30000);
+
+        const encodedFileName = encodeURIComponent(finalFileName);
+
+        const safeFallbackName = finalFileName
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-zA-Z0-9.-]/g, "_");
 
         return new NextResponse(fileBuffer, {
-        headers: {
-            'Content-Disposition': `attachment; filename="${finalFileName}"`,
-            'Content-Type': 'application/octet-stream',
-        },
+            headers: {
+                'Content-Disposition': `attachment; filename="${safeFallbackName}"; filename*=UTF-8''${encodedFileName}`,
+                'Content-Type': 'application/octet-stream',
+            },
         });
     } catch (error) {
+        console.error("❌ ERREUR CRITIQUE AU TÉLÉCHARGEMENT :");
+        console.error(error);
         return new Response('Fichier introuvable ou expiré', { status: 404 });
     }
 }

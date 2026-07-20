@@ -15,6 +15,7 @@ export default function PdfMergePage() {
     const [files, setFiles] = useState<File[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
+    const [progress, setProgress] = useState<number>(0);
 
     const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
@@ -88,14 +89,23 @@ export default function PdfMergePage() {
             return;
         }
         setIsProcessing(true);
+        setProgress(0);
 
         const toastId = toast.loading("Fusion de vos documents en cours...");
+
+        const progressInterval = setInterval(() => {
+            setProgress((prev) => (prev >= 95 ? 95 : prev + Math.floor(Math.random() * 15)));
+        }, 300);
 
         const formData = new FormData();
         files.forEach((file) => formData.append('files', file));
         
         try {
             const res = await fetch('/api/pdf/merge', { method: 'POST', body: formData });
+            
+            clearInterval(progressInterval);
+            setProgress(100);
+
             if (res.ok) {
                 const blob = await res.blob();
                 const url = window.URL.createObjectURL(blob);
@@ -110,10 +120,11 @@ export default function PdfMergePage() {
                 toast.error("Une erreur est survenue lors de la fusion.", { id: toastId });
             }
         } catch (error) {
+            clearInterval(progressInterval);
             console.error("Erreur lors de la fusion:", error);
             toast.error("Erreur de connexion au serveur.", { id: toastId });
         } finally {
-            setIsProcessing(false);
+            setTimeout(() => setIsProcessing(false), 500); 
         }
     };
 
@@ -178,6 +189,21 @@ export default function PdfMergePage() {
                     ))}
                     </AnimatePresence>
                 </ul>
+                </div>
+            )}
+
+            {isProcessing && (
+                <div className="w-full space-y-2 animate-in fade-in duration-500">
+                    <div className="flex justify-between items-center text-xs font-bold text-gray-600">
+                        <span>Fusion en cours...</span>
+                        <span>{progress}%</span>
+                    </div>
+                    <div className="h-3 w-full bg-gray-100 rounded-full overflow-hidden shadow-inner">
+                        <div 
+                            className="h-full bg-black rounded-full transition-all duration-300 ease-out"
+                            style={{ width: `${progress}%` }}
+                        />
+                    </div>
                 </div>
             )}
 

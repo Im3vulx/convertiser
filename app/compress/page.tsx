@@ -13,34 +13,32 @@ type JobState = {
 
 export default function CompressPage() {
     const [jobs, setJobs] = useState<JobState[]>([]);
-    const [compressionLevel, setCompressionLevel] = useState<"standard" | "high">(
-        "standard",
-    );
+    const [compressionLevel, setCompressionLevel] = useState<"standard" | "high">("standard");
     const [isDragging, setIsDragging] = useState(false);
 
     const generatePreview = async (file: File): Promise<string | undefined> => {
         if (file.type.startsWith("image/")) {
-        return URL.createObjectURL(file);
+            return URL.createObjectURL(file);
         } else if (file.type.startsWith("video/")) {
-        return new Promise((resolve) => {
-            const video = document.createElement("video");
-            const canvas = document.createElement("canvas");
-            video.autoplay = true;
-            video.muted = true;
-            video.src = URL.createObjectURL(file);
+            return new Promise((resolve) => {
+                const video = document.createElement("video");
+                const canvas = document.createElement("canvas");
+                video.autoplay = true;
+                video.muted = true;
+                video.src = URL.createObjectURL(file);
 
-            video.onloadeddata = () => {
-            video.currentTime = 1;
-            };
-            video.onseeked = () => {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const ctx = canvas.getContext("2d");
-            ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
-            resolve(canvas.toDataURL("image/jpeg"));
-            };
-            video.onerror = () => resolve(undefined);
-        });
+                video.onloadeddata = () => {
+                    video.currentTime = 1;
+                };
+                video.onseeked = () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    const ctx = canvas.getContext("2d");
+                    ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    resolve(canvas.toDataURL("image/jpeg"));
+                };
+                video.onerror = () => resolve(undefined);
+            });
         }
         return undefined;
     };
@@ -58,17 +56,17 @@ export default function CompressPage() {
         setJobs((prev) => [...prev, ...newJobs]);
 
         for (let i = 0; i < newJobs.length; i++) {
-        const previewUrl = await generatePreview(newJobs[i].file);
-        if (previewUrl) {
-            setJobs((currentJobs) => {
-            const updated = [...currentJobs];
-            const targetIndex = updated.findIndex(
-                (j) => j.file === newJobs[i].file,
-            );
-            if (targetIndex !== -1) updated[targetIndex].previewUrl = previewUrl;
-            return updated;
-            });
-        }
+            const previewUrl = await generatePreview(newJobs[i].file);
+            if (previewUrl) {
+                setJobs((currentJobs) => {
+                    const updated = [...currentJobs];
+                    const targetIndex = updated.findIndex(
+                        (j) => j.file === newJobs[i].file,
+                    );
+                    if (targetIndex !== -1) updated[targetIndex].previewUrl = previewUrl;
+                    return updated;
+                });
+            }
         }
     };
 
@@ -89,7 +87,7 @@ export default function CompressPage() {
     const handleProcessAll = () => {
         if (jobs.length === 0) return;
         jobs.forEach((job, index) => {
-        if (job.status === "idle") startSingleJob(job, index);
+            if (job.status === "idle") startSingleJob(job, index);
         });
     };
 
@@ -108,18 +106,18 @@ export default function CompressPage() {
             const eventSource = new EventSource(`/api/progress?jobId=${jobId}`);
             eventSource.onmessage = (event) => {
                 const data = JSON.parse(event.data);
-                updateJobState(index, { progress: data.progress });
+                
+                updateJobState(index, { progress: data.progress || 0 });
 
                 if (data.status === "done") {
-                eventSource.close();
-                updateJobState(index, { status: "done", progress: 100 });
-                const link = document.createElement("a");
-                link.href = `/api/download?jobId=${jobId}&format=${targetFormat}`;
-                link.target = "_blank";
-                link.click();
+                    eventSource.close();
+                    updateJobState(index, { status: "done", progress: 100 });
+                    const link = document.createElement("a");
+                    link.href = `/api/download?jobId=${jobId}&format=${targetFormat}`;
+                    link.click();
                 } else if (data.status === "error") {
-                eventSource.close();
-                updateJobState(index, { status: "error" });
+                    eventSource.close();
+                    updateJobState(index, { status: "error" });
                 }
             };
         } catch (error) {
@@ -131,9 +129,9 @@ export default function CompressPage() {
 
     const updateJobState = (index: number, updates: Partial<JobState>) => {
         setJobs((prevJobs) => {
-        const newJobs = [...prevJobs];
-        newJobs[index] = { ...newJobs[index], ...updates };
-        return newJobs;
+            const newJobs = [...prevJobs];
+            newJobs[index] = { ...newJobs[index], ...updates };
+            return newJobs;
         });
     };
 
@@ -142,6 +140,10 @@ export default function CompressPage() {
     };
 
     const isProcessing = jobs.some((job) => job.status === "converting");
+
+    const totalProgress = jobs.length > 0 
+        ? Math.round(jobs.reduce((acc, job) => acc + job.progress, 0) / jobs.length) 
+        : 0;
 
     return (
         <main className="min-h-screen bg-gray-50 py-12 px-6 font-sans">
@@ -156,35 +158,50 @@ export default function CompressPage() {
             </p>
             </header>
 
-            {/* Panneau de contrôle */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div className="flex items-center gap-3">
-                <span className="font-medium text-gray-700">
-                Niveau de compression :
-                </span>
-                <select
-                value={compressionLevel}
-                onChange={(e) =>
-                    setCompressionLevel(e.target.value as "standard" | "high")
-                }
-                className="border-gray-300 text-black border p-2.5 rounded-lg bg-gray-50 outline-none"
-                disabled={isProcessing}
-                >
-                <option value="standard">Standard (Bon compromis)</option>
-                <option value="high">Élevée (Fichier plus léger)</option>
-                </select>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+                <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <span className="font-medium text-gray-700">
+                        Niveau de compression :
+                        </span>
+                        <select
+                        value={compressionLevel}
+                        onChange={(e) =>
+                            setCompressionLevel(e.target.value as "standard" | "high")
+                        }
+                        className="border-gray-300 text-black border p-2.5 rounded-lg bg-gray-50 outline-none"
+                        disabled={isProcessing}
+                        >
+                        <option value="standard">Standard (Bon compromis)</option>
+                        <option value="high">Élevée (Fichier plus léger)</option>
+                        </select>
+                    </div>
+
+                    <button
+                        onClick={handleProcessAll}
+                        disabled={isProcessing || jobs.length === 0}
+                        className="w-full md:w-auto bg-black text-white px-6 py-2.5 rounded-lg font-medium transition-all hover:bg-gray-800 disabled:bg-gray-300"
+                    >
+                        {isProcessing ? "Compression en cours..." : "Compresser la sélection"}
+                    </button>
+                </div>
+
+                {isProcessing && (
+                    <div className="w-full pt-4 border-t border-gray-100 animate-in fade-in duration-500">
+                        <div className="flex justify-between items-center text-xs font-bold text-gray-600 mb-2">
+                            <span>Progression totale ({jobs.length} fichiers)</span>
+                            <span>{totalProgress}%</span>
+                        </div>
+                        <div className="h-3 w-full bg-gray-100 rounded-full overflow-hidden shadow-inner">
+                            <div 
+                                className="h-full bg-black rounded-full transition-all duration-300 ease-out"
+                                style={{ width: `${totalProgress}%` }}
+                            />
+                        </div>
+                    </div>
+                )}
             </div>
 
-            <button
-                onClick={handleProcessAll}
-                disabled={isProcessing || jobs.length === 0}
-                className="w-full md:w-auto bg-black text-white px-6 py-2.5 rounded-lg font-medium transition-all hover:bg-gray-800 disabled:bg-gray-300"
-            >
-                {isProcessing ? "Compression..." : "Compresser la sélection"}
-            </button>
-            </div>
-
-            {/* Zone de Drag & Drop */}
             <div
             onDragOver={onDragOver}
             onDragLeave={onDragLeave}
@@ -213,7 +230,6 @@ export default function CompressPage() {
             </div>
             </div>
 
-            {/* Liste des fichiers */}
             {jobs.length > 0 && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <ul className="divide-y divide-gray-100">
