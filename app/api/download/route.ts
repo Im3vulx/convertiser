@@ -18,13 +18,17 @@ export async function GET(request: Request) {
     const suffix = format === 'zip' ? 'images' : 'converti';
     
     const finalFileName = `${originalName}-${suffix}.${format}`;
-
     const filePath = path.join(os.tmpdir(), `converted-${jobId}.${format}`);
 
     try {
         const fileBuffer = await readFile(filePath);
         
-        unlink(filePath).catch((err) => console.error("Erreur de nettoyage:", err));
+        unlink(filePath).catch((err) => console.error("Erreur de nettoyage disque:", err));
+
+        if (globalStore.jobs && globalStore.jobs[jobId]) {
+        delete globalStore.jobs[jobId];
+        console.log(`[Mémoire] Job ${jobId} supprimé de la RAM avec succès.`);
+        }
 
         return new NextResponse(fileBuffer, {
         headers: {

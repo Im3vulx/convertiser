@@ -16,6 +16,7 @@ export default function PdfPage() {
     const [action, setAction] = useState('compress');
     const [file, setFile] = useState<File | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [progress, setProgress] = useState<number>(0);
 
     const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
@@ -69,19 +70,24 @@ export default function PdfPage() {
         
         try {
             const res = await fetch('/api/pdf', { method: 'POST', body: formData });
-
             if (!res.ok) throw new Error("Erreur serveur");
-
             const { jobId, targetFormat } = await res.json();
+
+            setProgress(0);
 
             const eventSource = new EventSource(`/api/progress?jobId=${jobId}`);
             
             eventSource.onmessage = (event) => {
                 const data = JSON.parse(event.data);
+
+                if (data.progress !== undefined) {
+                    setProgress(data.progress);
+                }
                 
                 if (data.status === 'done') {
                     eventSource.close();
                     setIsProcessing(false);
+                    setProgress(100);
                     
                     const link = document.createElement('a');
                     link.href = `/api/download?jobId=${jobId}&format=${targetFormat}`;
@@ -92,6 +98,7 @@ export default function PdfPage() {
                 } else if (data.status === 'error') {
                     eventSource.close();
                     setIsProcessing(false);
+                    setProgress(0);
                     toast.error("Une erreur s'est produite lors du traitement du PDF.", { id: toastId });
                 }
             };
@@ -134,7 +141,6 @@ export default function PdfPage() {
                 type="file" 
                 accept=".pdf"
                 disabled={isProcessing}
-                // Utilisation de la validation ici aussi
                 onChange={(e) => e.target.files && validateAndSetFile(e.target.files[0])}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 />
@@ -155,12 +161,27 @@ export default function PdfPage() {
                 </div>
             </div>
 
+            {isProcessing && (
+                <div className="w-full space-y-2 animate-in fade-in duration-500">
+                    <div className="flex justify-between items-center text-xs font-bold text-gray-600">
+                        <span>Traitement en cours...</span>
+                        <span>{progress}%</span>
+                    </div>
+                    <div className="h-3 w-full bg-gray-100 rounded-full overflow-hidden shadow-inner">
+                        <div 
+                            className="h-full bg-black rounded-full transition-all duration-300 ease-out"
+                            style={{ width: `${progress}%` }}
+                        />
+                    </div>
+                </div>
+            )}
+
             <button 
                 onClick={handleProcess} 
                 disabled={!file || isProcessing}
                 className="w-full bg-black text-white py-4 rounded-xl font-bold hover:bg-gray-800 disabled:bg-gray-300 transition-all active:scale-[0.98]"
             >
-                {isProcessing ? 'Traitement en cours...' : 'Traiter le document'}
+                {isProcessing ? 'Veuillez patienter...' : 'Traiter le document'}
             </button>
             
             <div className="pt-6 border-t border-gray-100 text-center">

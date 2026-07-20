@@ -61,7 +61,13 @@ export async function processFfmpegJob(
         // MOTEUR 1 : IMAGEMAGICK (Pour les formats complexes)
         // ---------------------------------------------------------
         if (COMPLEX_FORMATS.includes(originalExtension)) {
-            globalStore.jobs[jobId].progress = 40; 
+            globalStore.jobs[jobId].progress = 40;
+
+            setTimeout(() => {
+                if (globalStore.jobs[jobId]) {
+                    delete globalStore.jobs[jobId];
+                }
+            }, 3600000);
             
             const targetFormat = formData.get('format') as string || 'png';
             const outputPath = path.join(tempDir, `converted-${jobId}.${targetFormat}`);

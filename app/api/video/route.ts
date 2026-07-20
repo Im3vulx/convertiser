@@ -15,7 +15,7 @@ export async function POST(request: Request) {
             command.noAudio();
         } 
         else if (action === 'speed') {
-            const factor = parseFloat(formData.get('factor') as string || '1');
+            const factor = Number.parseFloat(formData.get('factor') as string || '1');
             command.videoFilters(`setpts=${1/factor}*PTS`).audioFilters(`atempo=${factor}`);
         }
 
