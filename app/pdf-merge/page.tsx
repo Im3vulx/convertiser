@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Reorder, AnimatePresence } from 'framer-motion';
 
 const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Octet';
@@ -11,8 +11,13 @@ const formatFileSize = (bytes: number) => {
     return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
+type MergeItem = {
+    id: string;
+    file: File;
+};
+
 export default function PdfMergePage() {
-    const [files, setFiles] = useState<File[]>([]);
+    const [files, setFiles] = useState<MergeItem[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const [progress, setProgress] = useState<number>(0);
@@ -21,7 +26,7 @@ export default function PdfMergePage() {
 
     const validateAndAddFiles = (fileList: FileList | File[]) => {
         const incomingFiles = Array.from(fileList);
-        const validFiles: File[] = [];
+        const validItems: MergeItem[] = [];
         let errorCount = 0;
 
         incomingFiles.forEach((file) => {
@@ -41,13 +46,16 @@ export default function PdfMergePage() {
                 return;
             }
 
-            validFiles.push(file);
+            validItems.push({ 
+                id: Math.random().toString(36).substring(2, 9), 
+                file 
+            });
         });
 
-        if (validFiles.length > 0) {
-            setFiles(prev => [...prev, ...validFiles]);
+        if (validItems.length > 0) {
+            setFiles(prev => [...prev, ...validItems]);
             if (errorCount === 0) {
-                toast.success(validFiles.length > 1 ? `${validFiles.length} fichiers ajoutés` : `Fichier ajouté`, {
+                toast.success(validItems.length > 1 ? `${validItems.length} fichiers ajoutés` : `Fichier ajouté`, {
                     description: "Prêt pour la fusion."
                 });
             }
@@ -79,8 +87,8 @@ export default function PdfMergePage() {
         e.target.value = '';
     };
 
-    const removeFile = (indexToRemove: number) => {
-        setFiles(prev => prev.filter((_, index) => index !== indexToRemove));
+    const removeFile = (idToRemove: string) => {
+        setFiles(prev => prev.filter(item => item.id !== idToRemove));
     };
 
     const handleMerge = async () => {
@@ -89,7 +97,7 @@ export default function PdfMergePage() {
             return;
         }
         setIsProcessing(true);
-        setProgress(0);
+        setProgress(0); 
 
         const toastId = toast.loading("Fusion de vos documents en cours...");
 
@@ -98,7 +106,7 @@ export default function PdfMergePage() {
         }, 300);
 
         const formData = new FormData();
-        files.forEach((file) => formData.append('files', file));
+        files.forEach((item) => formData.append('files', item.file));
         
         try {
             const res = await fetch('/api/pdf/merge', { method: 'POST', body: formData });
@@ -111,7 +119,7 @@ export default function PdfMergePage() {
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                const firstFileName = files[0].name.replace('.pdf', '');
+                const firstFileName = files[0].file.name.replace('.pdf', '');
                 a.download = `${firstFileName}-fusion.pdf`;
                 a.click();
                 window.URL.revokeObjectURL(url);
@@ -133,7 +141,7 @@ export default function PdfMergePage() {
         <div className="max-w-4xl mx-auto space-y-8">
             <header className="text-center">
             <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Fusionner vos PDF</h1>
-            <p className="text-gray-500 mt-2">Glissez vos fichiers, ils seront fusionnés dans l&apos;ordre de la liste.</p>
+            <p className="text-gray-500 mt-2">Glissez vos fichiers, réorganisez-les, puis fusionnez-les.</p>
             </header>
 
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 space-y-6">
@@ -160,35 +168,53 @@ export default function PdfMergePage() {
 
             {files.length > 0 && (
                 <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-                <h3 className="font-bold text-gray-900 mb-3 text-sm">Fichiers dans la file d&apos;attente ({files.length}) :</h3>
-                <ul className="space-y-2">
+                <h3 className="font-bold text-gray-900 mb-3 text-sm flex justify-between items-center">
+                    <span>Fichiers à fusionner ({files.length}) :</span>
+                    {files.length > 1 && <span className="text-xs text-blue-500 font-normal">Vous pouvez glisser pour réorganiser ↑↓</span>}
+                </h3>
+                
+                <Reorder.Group 
+                    axis="y" 
+                    values={files} 
+                    onReorder={setFiles} 
+                    className="space-y-2"
+                >
                     <AnimatePresence mode="popLayout">
-                    {files.map((f, i) => (
-                        <motion.li 
-                        layout
-                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, x: -50, transition: { duration: 0.2 } }}
-                        transition={{ duration: 0.2 }}
-                        key={`${f.name}-${i}`}
-                        className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm text-sm"
+                    {files.map((item, i) => (
+                        <Reorder.Item 
+                            key={item.id}
+                            value={item}
+                            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
+                            className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm text-sm cursor-grab active:cursor-grabbing hover:border-blue-300 transition-colors"
                         >
                         <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="text-gray-400">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16M4 16h16"></path>
+                                </svg>
+                            </div>
+                            
                             <span className="bg-black text-white px-2.5 py-1 rounded-md text-[11px] font-bold shrink-0">{i + 1}</span>
-                            <span className="truncate font-medium text-gray-700">{f.name}</span>
-                            <span className="text-xs text-gray-400 font-mono shrink-0">({formatFileSize(f.size)})</span>
+                            <span className="truncate font-medium text-gray-700 select-none">{item.file.name}</span>
+                            <span className="text-xs text-gray-400 font-mono shrink-0">({formatFileSize(item.file.size)})</span>
                         </div>
+                        
                         <button 
-                            onClick={() => removeFile(i)}
+                            onClick={() => removeFile(item.id)}
                             disabled={isProcessing}
+                            onPointerDown={(e) => e.stopPropagation()} 
                             className="ml-2 text-gray-400 hover:text-red-500 transition-colors focus:outline-none"
                         >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
                         </button>
-                        </motion.li>
+                        </Reorder.Item>
                     ))}
                     </AnimatePresence>
-                </ul>
+                </Reorder.Group>
                 </div>
             )}
 
