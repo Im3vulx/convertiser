@@ -1,8 +1,9 @@
 'use client';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAcceptAttribute, getValidFilesOrNotify } from '@/lib/client-files';
+import JSZip from 'jszip';
 
 type JobState = { file: File; progress: number; status: 'idle' | 'converting' | 'done' | 'error'; previewUrl?: string; };
 
@@ -13,6 +14,9 @@ export default function ResizePage() {
     const [width, setWidth] = useState('800');
     const [height, setHeight] = useState('600');
     const [keepRatio, setKeepRatio] = useState(true);
+
+    const zipRef = useRef<JSZip>(new JSZip());
+    const completedCount = useRef<number>(0);
 
     const generatePreview = async (file: File): Promise<string | undefined> => {
         if (file.type.startsWith('image/')) return URL.createObjectURL(file);
@@ -59,41 +63,86 @@ export default function ResizePage() {
     const onDrop = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); if (e.dataTransfer.files?.length > 0) processFiles(e.dataTransfer.files); };
 
     const handleProcessAll = () => {
-        if (jobs.length === 0) return;
-        jobs.forEach((job, index) => { if (job.status === 'idle') startSingleJob(job, index); });
+        const jobsToProcess = jobs.filter(j => j.status === "idle");
+        if (jobsToProcess.length === 0) return;
+
+        zipRef.current = new JSZip();
+        completedCount.current = 0;
+        const totalJobs = jobsToProcess.length;
+
+        jobs.forEach((job, index) => {
+            if (job.status === 'idle') startSingleJob(job, index, totalJobs);
+        });
     };
 
-    const startSingleJob = async (job: JobState, index: number) => {
+    const checkBatchCompletion = async (totalJobs: number) => {
+        completedCount.current += 1;
+        
+        if (completedCount.current === totalJobs && totalJobs > 1) {
+            const toastId = toast.loading("Finalisation de l'archive ZIP...");
+            try {
+                const content = await zipRef.current.generateAsync({ type: "blob" });
+                const url = window.URL.createObjectURL(content);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "Fichiers_Redimensionnes.zip";
+                a.click();
+                window.URL.revokeObjectURL(url);
+                toast.success("Archive téléchargée avec succès !", { id: toastId });
+            } catch (error) {
+                toast.error("Erreur lors de la création du ZIP", { id: toastId });
+            }
+        }
+    };
+
+    const startSingleJob = async (job: JobState, index: number, totalJobs: number) => {
         updateJobState(index, { status: 'converting' });
         const formData = new FormData();
         formData.append('file', job.file);
-        
         formData.append('width', width);
         formData.append('height', keepRatio ? '-1' : height);
 
         try {
-        const response = await fetch('/api/resize', { method: 'POST', body: formData });
-        const { jobId, targetFormat } = await response.json();
-        if (!jobId) throw new Error("Erreur d'initialisation");
+            const response = await fetch('/api/resize', { method: 'POST', body: formData });
+            const { jobId, targetFormat } = await response.json();
+            if (!jobId) throw new Error("Erreur d'initialisation");
 
-        const eventSource = new EventSource(`/api/progress?jobId=${jobId}`);
-        eventSource.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            updateJobState(index, { progress: data.progress });
-            if (data.status === 'done') {
-            eventSource.close();
-            updateJobState(index, { status: 'done', progress: 100 });
-            const link = document.createElement('a');
-            link.href = `/api/download?jobId=${jobId}&format=${targetFormat}`;
-            link.target = '_blank'; link.click();
-            } else if (data.status === 'error') {
-            eventSource.close();
-            updateJobState(index, { status: 'error' });
-            }
-        };
+            const eventSource = new EventSource(`/api/progress?jobId=${jobId}`);
+            eventSource.onmessage = async (event) => {
+                const data = JSON.parse(event.data);
+                updateJobState(index, { progress: data.progress || 0 });
+                
+                if (data.status === 'done') {
+                    eventSource.close();
+                    updateJobState(index, { status: 'done', progress: 100 });
+                    
+                    if (totalJobs === 1) {
+                        const link = document.createElement('a');
+                        link.href = `/api/download?jobId=${jobId}&format=${targetFormat}`;
+                        link.click();
+                        checkBatchCompletion(totalJobs);
+                    } else {
+                        try {
+                            const res = await fetch(`/api/download?jobId=${jobId}&format=${targetFormat}`);
+                            const blob = await res.blob();
+                            const baseName = job.file.name.substring(0, job.file.name.lastIndexOf('.')) || job.file.name;
+                            const ext = targetFormat || job.file.name.split('.').pop();
+                            zipRef.current.file(`${baseName}-resize.${ext}`, blob);
+                        } catch (err) {
+                            console.error("Erreur d'ajout au ZIP:", err);
+                        }
+                        checkBatchCompletion(totalJobs);
+                    }
+                } else if (data.status === 'error') {
+                    eventSource.close();
+                    updateJobState(index, { status: 'error' });
+                    checkBatchCompletion(totalJobs);
+                }
+            };
         } catch (error) { 
             updateJobState(index, { status: 'error' });
             toast.error("Une erreur est survenue lors du redimensionnement du fichier.");
+            checkBatchCompletion(totalJobs);
         }
     };
 
@@ -103,6 +152,9 @@ export default function ResizePage() {
     const removeJob = (indexToRemove: number) => setJobs(prev => prev.filter((_, index) => index !== indexToRemove));
 
     const isProcessing = jobs.some(job => job.status === 'converting');
+    const totalProgress = jobs.length > 0 
+        ? Math.round(jobs.reduce((acc, job) => acc + job.progress, 0) / jobs.length) 
+        : 0;
 
     return (
         <main className="min-h-screen bg-gray-50 py-12 px-6 font-sans">
@@ -112,49 +164,69 @@ export default function ResizePage() {
             <p className="mt-2 text-gray-500">Modifiez la résolution de vos médias en quelques secondes</p>
             </header>
             
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-6 items-center justify-between">
-            <div className="flex flex-col md:flex-row gap-4 items-center">
-                
-                <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">Largeur (px)</label>
-                <input 
-                    type="number" 
-                    value={width} 
-                    onChange={(e) => setWidth(e.target.value)} 
-                    disabled={isProcessing} 
-                    className="w-24 border-gray-300 text-black border p-2 rounded-lg bg-gray-50 outline-none text-center" 
-                />
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+                <div className="flex flex-col md:flex-row gap-6 items-center justify-between">
+                    <div className="flex flex-col md:flex-row gap-4 items-center">
+                        
+                        <div className="flex items-center gap-2">
+                        <label className="text-sm font-medium text-gray-700">Largeur (px)</label>
+                        <input 
+                            type="number" 
+                            value={width} 
+                            onChange={(e) => setWidth(e.target.value)} 
+                            disabled={isProcessing} 
+                            className="w-24 border-gray-300 text-black border p-2 rounded-lg bg-gray-50 outline-none text-center" 
+                        />
+                        </div>
+
+                        <div className="text-gray-400 font-bold hidden md:block">X</div>
+
+                        <div className="flex items-center gap-2">
+                        <label className="text-sm font-medium text-gray-700">Hauteur (px)</label>
+                        <input 
+                            type="number" 
+                            value={height} 
+                            onChange={(e) => setHeight(e.target.value)} 
+                            disabled={isProcessing || keepRatio} 
+                            className={`w-24 border p-2 rounded-lg outline-none text-center text-black ${keepRatio ? 'bg-gray-200 border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300 bg-gray-50'}`} 
+                        />
+                        </div>
+
+                        <label className="flex items-center gap-2 ml-4 cursor-pointer">
+                        <input 
+                            type="checkbox" 
+                            checked={keepRatio} 
+                            onChange={(e) => setKeepRatio(e.target.checked)} 
+                            disabled={isProcessing}
+                            className="w-4 h-4 text-black rounded border-gray-300 focus:ring-black"
+                        />
+                        <span className="text-sm font-medium text-gray-700">Garder proportions</span>
+                        </label>
+                    </div>
+                    
+                    <button 
+                        onClick={handleProcessAll} 
+                        disabled={isProcessing || jobs.filter(j => j.status === 'idle').length === 0} 
+                        className="w-full md:w-auto bg-black text-white px-6 py-2.5 rounded-lg font-medium transition-all hover:bg-gray-800 disabled:bg-gray-300"
+                    >
+                        {isProcessing ? 'En cours...' : 'Redimensionner'}
+                    </button>
                 </div>
 
-                <div className="text-gray-400 font-bold hidden md:block">X</div>
-
-                <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">Hauteur (px)</label>
-                <input 
-                    type="number" 
-                    value={height} 
-                    onChange={(e) => setHeight(e.target.value)} 
-                    disabled={isProcessing || keepRatio} 
-                    className={`w-24 border p-2 rounded-lg outline-none text-center text-black ${keepRatio ? 'bg-gray-200 border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300 bg-gray-50'}`} 
-                />
-                </div>
-
-                <label className="flex items-center gap-2 ml-4 cursor-pointer">
-                <input 
-                    type="checkbox" 
-                    checked={keepRatio} 
-                    onChange={(e) => setKeepRatio(e.target.checked)} 
-                    disabled={isProcessing}
-                    className="w-4 h-4 text-black rounded border-gray-300 focus:ring-black"
-                />
-                <span className="text-sm font-medium text-gray-700">Garder les proportions</span>
-                </label>
-
-            </div>
-            
-            <button onClick={handleProcessAll} disabled={isProcessing || jobs.length === 0} className="w-full md:w-auto bg-black text-white px-6 py-2.5 rounded-lg font-medium transition-all hover:bg-gray-800 disabled:bg-gray-300">
-                {isProcessing ? 'En cours...' : 'Redimensionner'}
-            </button>
+                {isProcessing && (
+                    <div className="w-full pt-4 border-t border-gray-100 animate-in fade-in duration-500">
+                        <div className="flex justify-between items-center text-xs font-bold text-gray-600 mb-2">
+                            <span>Progression totale ({jobs.length} fichiers)</span>
+                            <span>{totalProgress}%</span>
+                        </div>
+                        <div className="h-3 w-full bg-gray-100 rounded-full overflow-hidden shadow-inner">
+                            <div 
+                                className="h-full bg-black rounded-full transition-all duration-300 ease-out"
+                                style={{ width: `${totalProgress}%` }}
+                            />
+                        </div>
+                    </div>
+                )}
             </div>
 
             <div onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop} className={`relative border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-200 ease-in-out ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white hover:bg-gray-50'}`}>

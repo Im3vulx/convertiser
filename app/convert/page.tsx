@@ -1,8 +1,9 @@
 'use client';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { toast } from 'sonner';
 import { getAcceptAttribute, getValidFilesOrNotify } from '@/lib/client-files';
 import { motion, AnimatePresence } from 'framer-motion';
+import JSZip from 'jszip';
 
 type JobState = {
   file: File;
@@ -15,6 +16,9 @@ export default function ConvertPage() {
   const [jobs, setJobs] = useState<JobState[]>([]);
   const [format, setFormat] = useState<string>('webp');
   const [isDragging, setIsDragging] = useState(false);
+
+  const zipRef = useRef<JSZip>(new JSZip());
+  const completedCount = useRef<number>(0);
 
   const generatePreview = async (file: File): Promise<string | undefined> => {
     if (file.type.startsWith('image/')) {
@@ -75,13 +79,39 @@ export default function ConvertPage() {
   };
 
   const handleProcessAll = () => {
-    if (jobs.length === 0) return;
+    const jobsToProcess = jobs.filter(j => j.status === "idle");
+    if (jobsToProcess.length === 0) return;
+
+    zipRef.current = new JSZip();
+    completedCount.current = 0;
+    const totalJobs = jobsToProcess.length;
+
     jobs.forEach((job, index) => {
-      if (job.status === 'idle') startSingleJob(job, index);
+        if (job.status === "idle") startSingleJob(job, index, totalJobs);
     });
   };
 
-  const startSingleJob = async (job: JobState, index: number) => {
+  const checkBatchCompletion = async (totalJobs: number) => {
+    completedCount.current += 1;
+    
+    if (completedCount.current === totalJobs && totalJobs > 1) {
+        const toastId = toast.loading("Finalisation de l'archive ZIP...");
+        try {
+            const content = await zipRef.current.generateAsync({ type: "blob" });
+            const url = window.URL.createObjectURL(content);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "Fichiers_Convertis.zip";
+            a.click();
+            window.URL.revokeObjectURL(url);
+            toast.success("Archive téléchargée avec succès !", { id: toastId });
+        } catch (error) {
+            toast.error("Erreur lors de la création du ZIP", { id: toastId });
+        }
+    }
+  };
+
+  const startSingleJob = async (job: JobState, index: number, totalJobs: number) => {
     updateJobState(index, { status: 'converting' });
     const formData = new FormData();
     formData.append('file', job.file);
@@ -94,26 +124,42 @@ export default function ConvertPage() {
       if (!jobId) throw new Error("Erreur d'initialisation");
 
       const eventSource = new EventSource(`/api/progress?jobId=${jobId}`);
-      eventSource.onmessage = (event) => {
+      eventSource.onmessage = async (event) => {
         const data = JSON.parse(event.data);
-        updateJobState(index, { progress: data.progress });
+        updateJobState(index, { progress: data.progress || 0 });
 
         if (data.status === 'done') {
           eventSource.close();
           updateJobState(index, { status: 'done', progress: 100 });
-          const link = document.createElement('a');
-          link.href = `/api/download?jobId=${jobId}&format=${targetFormat}`;
-          link.target = '_blank'; 
-          link.click();
+
+          if (totalJobs === 1) {
+              const link = document.createElement('a');
+              link.href = `/api/download?jobId=${jobId}&format=${targetFormat}`;
+              link.click(); // Plus de target="_blank" !
+              checkBatchCompletion(totalJobs);
+          } else {
+              try {
+                  const res = await fetch(`/api/download?jobId=${jobId}&format=${targetFormat}`);
+                  const blob = await res.blob();
+                  const baseName = job.file.name.substring(0, job.file.name.lastIndexOf('.')) || job.file.name;
+                  const ext = targetFormat || format;
+                  zipRef.current.file(`${baseName}-converti.${ext}`, blob);
+              } catch (err) {
+                  console.error("Erreur d'ajout au ZIP:", err);
+              }
+              checkBatchCompletion(totalJobs);
+          }
         } else if (data.status === 'error') {
           eventSource.close();
           updateJobState(index, { status: 'error' });
+          checkBatchCompletion(totalJobs);
         }
       };
     } catch (error) {
       console.error('Erreur réseau:', error);
       updateJobState(index, { status: 'error' });
       toast.error("Erreur de connexion au serveur.");
+      checkBatchCompletion(totalJobs);
     }
   };
 
@@ -131,6 +177,10 @@ export default function ConvertPage() {
 
   const isProcessing = jobs.some(job => job.status === 'converting');
 
+  const totalProgress = jobs.length > 0 
+      ? Math.round(jobs.reduce((acc, job) => acc + job.progress, 0) / jobs.length) 
+      : 0;
+
   return (
     <main className="min-h-screen bg-gray-50 py-12 px-6 font-sans">
       <div className="max-w-4xl mx-auto space-y-8">
@@ -140,44 +190,61 @@ export default function ConvertPage() {
         </header>
         
         {/* Panneau de contrôle */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="font-medium text-gray-700">Format de sortie :</span>
-            <select 
-              value={format} 
-              onChange={(e) => setFormat(e.target.value)}
-              className="border-gray-300 text-black border p-2.5 rounded-lg bg-gray-50 outline-none"
-              disabled={isProcessing}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="font-medium text-gray-700">Format de sortie :</span>
+              <select 
+                value={format} 
+                onChange={(e) => setFormat(e.target.value)}
+                className="border-gray-300 text-black border p-2.5 rounded-lg bg-gray-50 outline-none"
+                disabled={isProcessing}
+              >
+                <optgroup label="Images">
+                  <option value="webp">WebP</option>
+                  <option value="png">PNG</option>
+                  <option value="jpg">JPG</option>
+                  <option value="jpeg">JPEG</option>
+                  <option value="bmp">BMP</option>
+                  <option value="tiff">TIFF (Haute qualité)</option>
+                  <option value="gif">GIF (Statique)</option>
+                  <option value="ico">ICO (Icône Web)</option>
+                  <option value="tga">TGA (Gaming/Textures)</option>
+                </optgroup>
+                <optgroup label="Vidéos">
+                  <option value="mp4">MP4</option>
+                  <option value="avi">AVI</option>
+                  <option value="webm">WebM</option>
+                </optgroup>
+              </select>
+            </div>
+            
+            <button 
+              onClick={handleProcessAll}
+              disabled={isProcessing || jobs.filter(j => j.status === 'idle').length === 0}
+              className="w-full md:w-auto bg-black text-white px-6 py-2.5 rounded-lg font-medium transition-all hover:bg-gray-800 disabled:bg-gray-300"
             >
-              <optgroup label="Images">
-                <option value="webp">WebP</option>
-                <option value="png">PNG</option>
-                <option value="jpg">JPG</option>
-                <option value="jpeg">JPEG</option>
-                <option value="bmp">BMP</option>
-                <option value="tiff">TIFF (Haute qualité)</option>
-                <option value="gif">GIF (Statique)</option>
-                <option value="ico">ICO (Icône Web)</option>
-                <option value="tga">TGA (Gaming/Textures)</option>
-              </optgroup>
-              <optgroup label="Vidéos">
-                <option value="mp4">MP4</option>
-                <option value="avi">AVI</option>
-                <option value="webm">WebM</option>
-              </optgroup>
-            </select>
+              {isProcessing ? 'Conversion en cours...' : `Tout convertir en .${format.toUpperCase()}`}
+            </button>
           </div>
-          
-          <button 
-            onClick={handleProcessAll}
-            disabled={isProcessing || jobs.length === 0}
-            className="w-full md:w-auto bg-black text-white px-6 py-2.5 rounded-lg font-medium transition-all hover:bg-gray-800 disabled:bg-gray-300"
-          >
-            {isProcessing ? 'Conversion en cours...' : `Tout convertir en .${format.toUpperCase()}`}
-          </button>
+
+          {/* LA BARRE DE PROGRESSION GLOBALE */}
+          {isProcessing && (
+              <div className="w-full pt-4 border-t border-gray-100 animate-in fade-in duration-500">
+                  <div className="flex justify-between items-center text-xs font-bold text-gray-600 mb-2">
+                      <span>Progression totale ({jobs.length} fichiers)</span>
+                      <span>{totalProgress}%</span>
+                  </div>
+                  <div className="h-3 w-full bg-gray-100 rounded-full overflow-hidden shadow-inner">
+                      <div 
+                          className="h-full bg-black rounded-full transition-all duration-300 ease-out"
+                          style={{ width: `${totalProgress}%` }}
+                      />
+                  </div>
+              </div>
+          )}
         </div>
 
-        {/* Zone de Drag & Drop */}
         <div 
           onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}
           className={`relative border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-200 ease-in-out ${
@@ -195,7 +262,6 @@ export default function ConvertPage() {
           </div>
         </div>
 
-        {/* Liste des fichiers */}
         {jobs.length > 0 && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <ul className="divide-y divide-gray-100">
@@ -219,7 +285,7 @@ export default function ConvertPage() {
                       <p className="font-medium text-gray-900 truncate text-sm">{job.file.name}</p>
                       {job.status !== 'idle' ? (
                         <div className="w-full bg-gray-200 rounded-full h-2 mt-2.5 overflow-hidden">
-                          <div className={`h-2 rounded-full transition-all duration-300 ease-out bg-blue-600 ${
+                          <div className={`h-2 rounded-full transition-all duration-300 ease-out ${
                             job.status === 'done' ? 'bg-green-500' : job.status === 'error' ? 'bg-red-500' : 'bg-blue-600'
                           }`} style={{ width: `${job.progress}%` }}></div>
                         </div>
