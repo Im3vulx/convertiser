@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" /> <!-- Bleu de Next.js -->
+      <stop offset="100%" style="stop-color:#000000;stop-opacity:1" /> <!-- Noir profond -->
+    </linearGradient>
+  </defs>
+  
+  <!-- Fond (optionnel, pour faire ressortir en PWA) -->
+  <rect width="512" height="512" rx="120" fill="url(#grad)" />
+  
+  <!-- Symbole de conversion (Flèches circulaires) -->
+  <path d="M 176 144 C 235 110 308 114 362 153 L 328 187 C 293 162 245 159 207 181 L 176 144 Z" fill="#FFFFFF" opacity="0.9"/>
+  <path d="M 336 368 C 277 402 204 398 150 359 L 184 325 C 219 350 267 353 305 331 L 336 368 Z" fill="#FFFFFF" opacity="0.9"/>
+  
+  <!-- Symbole Multimédia (Play) -->
+  <polygon points="210,200 340,256 210,312" fill="#FFFFFF" />
+</svg>
