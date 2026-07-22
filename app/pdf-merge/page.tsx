@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Reorder, AnimatePresence } from 'framer-motion';
+import { incrementStats } from '@/lib/stats';
 
 const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Octet';
@@ -123,6 +124,8 @@ export default function PdfMergePage() {
                 a.download = `${firstFileName}-fusion.pdf`;
                 a.click();
                 window.URL.revokeObjectURL(url);
+                incrementStats(files.length);
+                
                 toast.success("Fusion terminée avec succès !", { id: toastId });
             } else {
                 toast.error("Une erreur est survenue lors de la fusion.", { id: toastId });

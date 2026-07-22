@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { getAcceptAttribute, getValidFilesOrNotify } from '@/lib/client-files';
 import { motion, AnimatePresence } from 'framer-motion';
 import JSZip from 'jszip';
+import { incrementStats } from '@/lib/stats';
 
 type JobState = {
   file: File;
@@ -104,10 +105,13 @@ export default function ConvertPage() {
             a.download = "Fichiers_Convertis.zip";
             a.click();
             window.URL.revokeObjectURL(url);
+            incrementStats(totalJobs)
             toast.success("Archive téléchargée avec succès !", { id: toastId });
         } catch (error) {
             toast.error("Erreur lors de la création du ZIP", { id: toastId });
         }
+    } else if (totalJobs === 1) {
+        incrementStats(1);
     }
   };
 

@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAcceptAttribute, getValidFilesOrNotify } from '@/lib/client-files';
 import JSZip from 'jszip';
+import { incrementStats } from '@/lib/stats';
 
 type JobState = { file: File; progress: number; status: 'idle' | 'converting' | 'done' | 'error'; previewUrl?: string; };
 
@@ -69,10 +70,13 @@ export default function RemoveBgPage() {
                 a.download = "Images_Detourees.zip";
                 a.click();
                 window.URL.revokeObjectURL(url);
+                incrementStats(totalJobs);
                 toast.success("Archive téléchargée avec succès !", { id: toastId });
             } catch (error) {
                 toast.error("Erreur lors de la création du ZIP", { id: toastId });
             }
+        } else if (totalJobs === 1) {
+            incrementStats(1);
         }
     };
 

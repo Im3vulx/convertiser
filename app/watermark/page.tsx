@@ -3,6 +3,7 @@ import { useState, useRef } from 'react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAcceptAttribute, getValidFilesOrNotify } from '@/lib/client-files';
+import { incrementStats } from '@/lib/stats';
 import JSZip from 'jszip';
 
 type JobState = { file: File; progress: number; status: 'idle' | 'converting' | 'done' | 'error'; previewUrl?: string; };
@@ -85,10 +86,15 @@ export default function WatermarkPage() {
                 a.download = "Fichiers_Filigranes.zip";
                 a.click();
                 window.URL.revokeObjectURL(url);
+                
+                incrementStats(totalJobs);
+                
                 toast.success("Archive téléchargée avec succès !", { id: toastId });
             } catch (error) {
                 toast.error("Erreur lors de la création du ZIP", { id: toastId });
             }
+        } else if (totalJobs === 1 && completedCount.current === 1) {
+            incrementStats(1);
         }
     };
 
